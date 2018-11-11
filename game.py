@@ -9,26 +9,38 @@ class Player():
         self.y = display_height - self.height
         self.velocity = 5
         self.jump = False
+        self.standing = True
         self.left = False
-        self.right = False
+        self.right = True
         self.jump_count = 10
         self.JUMPCONST = 0.5
         self.walk_count = 0
 
-    def draw(self, window):
+    def draw(self):
+        global window
         if self.walk_count >= 18:
             self.walk_count = 0
 
-        if self.left == self.right:
-            window.blit(standing, (self.x, self.y))
+        if self.standing:
+            if self.left:
+                window.blit(WALK_LEFT[0], (self.x, self.y))
+            else:
+                window.blit(WALK_RIGHT[0], (self.x, self.y))
+
         elif self.left:
             window.blit(WALK_LEFT[self.walk_count//2], (self.x, self.y))
         elif self.right:
             window.blit(WALK_RIGHT[self. walk_count//2], (self.x, self.y))
 
     def exist(self):
+        keys = pygame.key.get_pressed()
+        print(keys[pygame.K_LEFT], keys[pygame.K_UP], keys[pygame.K_RIGHT], keys[pygame.K_SPACE], keys[pygame.K_DOWN])
+        if keys[pygame.K_SPACE]:
+            if len(projectiles) <= 20:
+                projectiles.append(Projectile(self.x + self.width//2, int(self.y + self.height/2), 5, self.left, (255,255,255)))
+        
         if not self.jump:
-            if keys[pygame.K_SPACE]:
+            if keys[pygame.K_UP]:
                 self.jump = True
         else:
             if self.jump_count >= -10:
@@ -46,6 +58,7 @@ class Player():
             if self.right:
                 self.walk_count = 0
                 self.right = False
+            self.standing = False
             self.left = True
             self.walk_count += 1
 
@@ -58,6 +71,7 @@ class Player():
             if self.left:
                 self.walk_count = 0
                 self.left = False
+            self.standing = False
             self.right = True
             self.walk_count += 1
 
@@ -67,14 +81,30 @@ class Player():
                 self.x += self.velocity
         
         if keys[pygame.K_LEFT] == keys[pygame.K_RIGHT]:
-            self.left = False
-            self.right = False
+            self.standing = True
 
+class Projectile():
+    def __init__(self, x, y, radius, is_left, color):
+        self.color = color
+        self.radius = radius
+        self.x = x
+        self.y = y
+        self.velocity = 5
+        if is_left:
+            self.direction_coefficient = -1
+        else:
+            self.direction_coefficient = 1
+
+    def draw(self):
+        global window
+        pygame.draw.circle(window, self.color, (self.x, self.y), self.radius)
 
 def draw_window():
     window.blit(bg, (0,0))
     
-    player1.draw(window)
+    player1.draw()
+    for projectile in projectiles:
+        projectile.draw()
 
     pygame.display.update()
 
@@ -96,6 +126,7 @@ standing = pygame.image.load('textures/standing.png')
 game_run = True
 
 player1 = Player(64, 64)
+projectiles = []
 
 while game_run:
     for event in pygame.event.get():
@@ -104,6 +135,13 @@ while game_run:
 
     clock.tick(27)
     keys = pygame.key.get_pressed()
+    
+    for projectile in projectiles:
+        if projectile.x + projectile.radius*2 < display_width and projectile.x >= 0:
+            projectile.x += projectile.velocity * projectile.direction_coefficient
+        else:
+            projectiles.remove(projectile)
+    
     player1.exist()
     draw_window()
 
