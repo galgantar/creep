@@ -33,8 +33,6 @@ class Player():
             window.blit(WALK_RIGHT[self. walk_count//2], (self.x, self.y))
 
     def exist(self):
-        keys = pygame.key.get_pressed()
-        print(keys[pygame.K_LEFT], keys[pygame.K_UP], keys[pygame.K_RIGHT], keys[pygame.K_SPACE], keys[pygame.K_DOWN])
         if keys[pygame.K_SPACE]:
             if len(projectiles) <= 20:
                 projectiles.append(Projectile(self.x + self.width//2, int(self.y + self.height/2), 5, self.left, (255,255,255)))
