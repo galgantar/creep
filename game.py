@@ -4,7 +4,7 @@ class Player():
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        
+
         self.x = int(display_width/2 - self.width/2)
         self.y = display_height - self.height
         self.velocity = 5
@@ -38,7 +38,7 @@ class Player():
         if keys[pygame.K_SPACE]:
             if len(projectiles) <= 20:
                 projectiles.append(Projectile(self.x + self.width//2, int(self.y + self.height/2), 5, self.left, (255,255,255)))
-        
+
         if not self.jump:
             if keys[pygame.K_UP]:
                 self.jump = True
@@ -47,7 +47,7 @@ class Player():
                 predznak = 1
                 if self.jump_count < 0:
                     predznak = -1
-                
+
                 self.y -= self.jump_count**2 * predznak * self.JUMPCONST
                 self.jump_count -= 1
             else:
@@ -66,7 +66,7 @@ class Player():
                 self.x = 0
             else:
                 self.x -= self.velocity
-        
+
         if keys[pygame.K_RIGHT]:
             if self.left:
                 self.walk_count = 0
@@ -79,9 +79,11 @@ class Player():
                 self.x = display_width - self.width
             else:
                 self.x += self.velocity
-        
+
         if keys[pygame.K_LEFT] == keys[pygame.K_RIGHT]:
             self.standing = True
+
+        return True
 
 class Projectile():
     def __init__(self, x, y, radius, is_left, color):
@@ -95,14 +97,23 @@ class Projectile():
         else:
             self.direction_coefficient = 1
 
+    def exist(self):
+        if self.x + self.radius*2 < display_width and self.x >= 0:
+            self.x += self.velocity * self.direction_coefficient
+            return True
+        else:
+            return False
+
     def draw(self):
         global window
         pygame.draw.circle(window, self.color, (self.x, self.y), self.radius)
 
 def draw_window():
     window.blit(bg, (0,0))
-    
-    player1.draw()
+
+    for player in players:
+        player.draw()
+
     for projectile in projectiles:
         projectile.draw()
 
@@ -125,7 +136,8 @@ standing = pygame.image.load('textures/standing.png')
 
 game_run = True
 
-player1 = Player(64, 64)
+players = []
+players.append(Player(64, 64))
 projectiles = []
 
 while game_run:
@@ -135,14 +147,15 @@ while game_run:
 
     clock.tick(27)
     keys = pygame.key.get_pressed()
-    
+
     for projectile in projectiles:
-        if projectile.x + projectile.radius*2 < display_width and projectile.x >= 0:
-            projectile.x += projectile.velocity * projectile.direction_coefficient
-        else:
+        if not projectile.exist():
             projectiles.remove(projectile)
-    
-    player1.exist()
+
+    for player in players:
+        if not player.exist():
+            players.remove(player)
+
     draw_window()
 
 pygame.quit()
