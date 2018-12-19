@@ -1,9 +1,12 @@
 import pygame
 
-class Player():
+class Player(object):
     def __init__(self, width, height):
         self.width = width
         self.height = height
+
+        self.WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
+        self.WALK_RIGHT = [pygame.transform.flip(self.WALK_LEFT[0], True, False), pygame.transform.flip(self.WALK_LEFT[1], True, False), pygame.transform.flip(self.WALK_LEFT[2], True, False), pygame.transform.flip(self.WALK_LEFT[3], True, False), pygame.transform.flip(self.WALK_LEFT[4], True, False), pygame.transform.flip(self.WALK_LEFT[5], True, False), pygame.transform.flip(self.WALK_LEFT[6], True, False), pygame.transform.flip(self.WALK_LEFT[7], True, False), pygame.transform.flip(self.WALK_LEFT[8], True, False)]
 
         self.x = int(display_width/2 - self.width/2)
         self.y = display_height - self.height
@@ -11,7 +14,6 @@ class Player():
         self.jump = False
         self.standing = True
         self.left = False
-        self.right = True
         self.jump_count = 10
         self.JUMPCONST = 0.5
         self.walk_count = 0
@@ -23,14 +25,14 @@ class Player():
 
         if self.standing:
             if self.left:
-                window.blit(WALK_LEFT[0], (self.x, self.y))
+                window.blit(self.WALK_LEFT[0], (self.x, self.y))
             else:
-                window.blit(WALK_RIGHT[0], (self.x, self.y))
+                window.blit(self.WALK_RIGHT[0], (self.x, self.y))
 
         elif self.left:
-            window.blit(WALK_LEFT[self.walk_count//2], (self.x, self.y))
-        elif self.right:
-            window.blit(WALK_RIGHT[self. walk_count//2], (self.x, self.y))
+            window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
+        else:
+            window.blit(self.WALK_RIGHT[self. walk_count//2], (self.x, self.y))
 
     def exist(self):
         if keys[pygame.K_SPACE]:
@@ -53,9 +55,8 @@ class Player():
                 self.jump_count = 10
 
         if keys[pygame.K_LEFT]:
-            if self.right:
+            if not self.left:
                 self.walk_count = 0
-                self.right = False
             self.standing = False
             self.left = True
             self.walk_count += 1
@@ -70,7 +71,6 @@ class Player():
                 self.walk_count = 0
                 self.left = False
             self.standing = False
-            self.right = True
             self.walk_count += 1
 
             if self.x + self.width + self.velocity >= display_width:
@@ -83,7 +83,53 @@ class Player():
 
         return True
 
-class Projectile():
+class Enemy(object):
+    def __init__(self, width, height, x):
+        self.WALK_LEFT = [pygame.image.load('textures/L1E.png'), pygame.image.load('textures/L2E.png'), pygame.image.load('textures/L3E.png'), pygame.image.load('textures/L4E.png'), pygame.image.load('textures/L5E.png'), pygame.image.load('textures/L6E.png'), pygame.image.load('textures/L7E.png'), pygame.image.load('textures/L8E.png'), pygame.image.load('textures/L9E.png')]
+        self.WALK_RIGHT = [pygame.transform.flip(self.WALK_LEFT[0], True, False), pygame.transform.flip(self.WALK_LEFT[1], True, False), pygame.transform.flip(self.WALK_LEFT[2], True, False), pygame.transform.flip(self.WALK_LEFT[3], True, False), pygame.transform.flip(self.WALK_LEFT[4], True, False), pygame.transform.flip(self.WALK_LEFT[5], True, False), pygame.transform.flip(self.WALK_LEFT[6], True, False), pygame.transform.flip(self.WALK_LEFT[7], True, False), pygame.transform.flip(self.WALK_LEFT[8], True, False)]
+
+        self.x = x
+        self.y = 0
+        self.width = width
+        self.height = height
+        self.standing = True
+
+        self.walk_count = 0
+        self.velocity = 3
+        self.left = False
+        self.fall_count = 0
+        self.FALLCONST = 0.3
+        self.ze_padel = False
+
+    def draw(self):
+        global window
+        if self.walk_count >= 18:
+            self.walk_count = 0
+        if self.standing:
+            if self.left:
+                window.blit(self.WALK_LEFT[0], (self.x, self.y))
+            else:
+                window.blit(self.WALK_RIGHT[0], (self.x, self.y))
+        elif self.left:
+            window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
+        else:
+            window.blit(self.WALK_RIGHT[self.walk_count//2], (self.x, self.y))
+
+    def exist(self):
+        if not self.ze_padel:
+            self.fall()
+        return True
+
+    def fall(self):
+        if self.y + self.height >= display_height:
+            self.y = display_height - self.height
+        elif self.y <= display_height - self.height:
+            self.y += self.fall_count**2 *self.FALLCONST
+            self.fall_count += 1
+        else:
+            self.ze_padel = True
+
+class Projectile(object):
     def __init__(self, x, y, radius, is_left, color):
         self.color = color
         self.radius = radius
@@ -112,6 +158,9 @@ def draw_window():
     for player in players:
         player.draw()
 
+    for enemy in enemies:
+        enemy.draw()
+
     for projectile in projectiles:
         projectile.draw()
 
@@ -123,20 +172,20 @@ display_width = 800
 display_height = 500
 
 window = pygame.display.set_mode((display_width, display_height))
-pygame.display.set_caption("Python game")
+#window = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+pygame.display.set_caption("Creep")
 
 clock = pygame.time.Clock()
 
-WALK_RIGHT = [pygame.image.load('textures/R1.png'), pygame.image.load('textures/R2.png'), pygame.image.load('textures/R3.png'), pygame.image.load('textures/R4.png'), pygame.image.load('textures/R5.png'), pygame.image.load('textures/R6.png'), pygame.image.load('textures/R7.png'), pygame.image.load('textures/R8.png'), pygame.image.load('textures/R9.png')]
-WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
 bg = pygame.image.load('textures/luna.png')
-standing = pygame.image.load('textures/standing.png')
 
 game_run = True
 
 players = []
-players.append(Player(64, 64))
 projectiles = []
+enemies = []
+players.append(Player(64, 64))
+enemies.append(Enemy(64, 64, 400))
 
 while game_run:
     for event in pygame.event.get():
@@ -146,13 +195,17 @@ while game_run:
     clock.tick(27)
     keys = pygame.key.get_pressed()
 
-    for projectile in projectiles:
-        if not projectile.exist():
-            projectiles.remove(projectile)
-
     for player in players:
         if not player.exist():
             players.remove(player)
+
+    for enemy in enemies:
+        if not enemy.exist():
+            enemies.remove(enemy)
+
+    for projectile in projectiles:
+        if not projectile.exist():
+            projectiles.remove(projectile)
 
     draw_window()
 
