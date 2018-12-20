@@ -9,6 +9,7 @@ class Player(object):
         self.JUMPCONST = 0.5
         self.WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
         self.WALK_RIGHT = [pygame.transform.flip(self.WALK_LEFT[0], True, False), pygame.transform.flip(self.WALK_LEFT[1], True, False), pygame.transform.flip(self.WALK_LEFT[2], True, False), pygame.transform.flip(self.WALK_LEFT[3], True, False), pygame.transform.flip(self.WALK_LEFT[4], True, False), pygame.transform.flip(self.WALK_LEFT[5], True, False), pygame.transform.flip(self.WALK_LEFT[6], True, False), pygame.transform.flip(self.WALK_LEFT[7], True, False), pygame.transform.flip(self.WALK_LEFT[8], True, False)]
+        self.HITBOXCONST = (17, 13, -33, -13)
 
         #Variable attributes
         self.x = int(display_width/2 - self.WIDTH/2)
@@ -18,6 +19,7 @@ class Player(object):
         self.left = False
         self.jump_count = 10
         self.walk_count = 0
+        self.hitbox = None
 
     def draw(self):
         global window
@@ -27,18 +29,23 @@ class Player(object):
         if self.standing:
             if self.left:
                 window.blit(self.WALK_LEFT[0], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.WALK_RIGHT[0], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
         elif self.left:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
+            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
             window.blit(self.WALK_RIGHT[self. walk_count//2], (self.x, self.y))
+            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
     def exist(self):
         self.check_fire()
         self.check_jump()
         self.check_move()
+        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
         return True
 
     def check_move(self):
@@ -101,6 +108,7 @@ class Enemy(object):
         self.HEIGHT = height
         self.velocity = 3
         self.FALLCONST = 0.3
+        self.HITBOXCONST = (10, 8, -20, -10)
 
         #Variable attributes
         self.x = x
@@ -113,27 +121,27 @@ class Enemy(object):
         self.closest_player_pos = None
         self.attack = True
         self.attack_count = -1
+        self.hitbox = None
 
     def draw(self):
         global window
         if self.walk_count >= 16:
             self.walk_count = 0
 
-        if self.standing:
-            if self.attack:
-                if self.left:
-                    window.blit(self.ATTACK_LEFT[self.attack_count], (self.x, self.y))
-                else:
-                    window.blit(self.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
-
-            elif self.left:
-                window.blit(self.WALK_LEFT[0], (self.x, self.y))
+        if self.attack:
+            if self.left:
+                window.blit(self.ATTACK_LEFT[self.attack_count], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
-                window.blit(self.WALK_RIGHT[0], (self.x, self.y))
+                window.blit(self.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+
         elif self.left:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
+            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
             window.blit(self.WALK_RIGHT[self.walk_count//2], (self.x, self.y))
+            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
     def exist(self):
         global players
@@ -145,6 +153,7 @@ class Enemy(object):
 
         self.check_move()
 
+        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
         return True
 
     def fall(self):
@@ -159,11 +168,10 @@ class Enemy(object):
     def check_move(self):
         if self.closest_player_pos != None and abs(self.x - self.closest_player_pos[0]) <= self.velocity:
             self.x = self.closest_player_pos[0]
-            self.standing = True
             self.make_attack()
 
         elif self.closest_player_pos != None and self.x > self.closest_player_pos[0]:
-            self.standing = False
+            self.attack = False
             if self.left:
                 self.walk_count += 1
                 self.x -= self.velocity
@@ -172,7 +180,7 @@ class Enemy(object):
                 self.walk_count = 0
 
         elif self.closest_player_pos != None and self.x < self.closest_player_pos[0]:
-            self.standing = False
+            self.attack = False
             if not self.left:
                 self.walk_count += 1
                 self.x += self.velocity
