@@ -8,15 +8,15 @@ class Player(object):
         self.velocity = 5
         self.JUMPCONST = 0.5
         self.WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
-        self.WALK_RIGHT = [pygame.transform.flip(self.WALK_LEFT[0], True, False), pygame.transform.flip(self.WALK_LEFT[1], True, False), pygame.transform.flip(self.WALK_LEFT[2], True, False), pygame.transform.flip(self.WALK_LEFT[3], True, False), pygame.transform.flip(self.WALK_LEFT[4], True, False), pygame.transform.flip(self.WALK_LEFT[5], True, False), pygame.transform.flip(self.WALK_LEFT[6], True, False), pygame.transform.flip(self.WALK_LEFT[7], True, False), pygame.transform.flip(self.WALK_LEFT[8], True, False)]
+        self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
         self.HITBOXCONST = (17, 13, -33, -13)
 
         #Variable attributes
         self.x = int(display_width/2 - self.WIDTH/2)
         self.y = display_height - self.HEIGHT
-        self.jump = False
+        self.isJump = False
         self.standing = True
-        self.left = False
+        self.isLeft = False
         self.jump_count = 10
         self.walk_count = 0
         self.hitbox = None
@@ -27,14 +27,14 @@ class Player(object):
             self.walk_count = 0
 
         if self.standing:
-            if self.left:
+            if self.isLeft:
                 window.blit(self.WALK_LEFT[0], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.WALK_RIGHT[0], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
-        elif self.left:
+        elif self.isLeft:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
             pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
@@ -50,10 +50,10 @@ class Player(object):
 
     def check_move(self):
         if keys[pygame.K_LEFT]:
-            if not self.left:
+            if not self.isLeft:
                 self.walk_count = 0
             self.standing = False
-            self.left = True
+            self.isLeft = True
             self.walk_count += 1
 
             if self.x - self.velocity <= 0:
@@ -62,9 +62,9 @@ class Player(object):
                 self.x -= self.velocity
 
         if keys[pygame.K_RIGHT]:
-            if self.left:
+            if self.isLeft:
                 self.walk_count = 0
-                self.left = False
+                self.isLeft = False
             self.standing = False
             self.walk_count += 1
 
@@ -77,9 +77,9 @@ class Player(object):
             self.standing = True
 
     def check_jump(self):
-        if not self.jump:
+        if not self.isJump:
             if keys[pygame.K_UP]:
-                self.jump = True
+                self.isJump = True
         else:
             if self.jump_count >= -10:
                 predznak = 1
@@ -89,26 +89,27 @@ class Player(object):
                 self.y -= self.jump_count**2 * predznak * self.JUMPCONST
                 self.jump_count -= 1
             else:
-                self.jump = False
+                self.isJump = False
                 self.jump_count = 10
 
     def check_fire(self):
         if keys[pygame.K_SPACE]:
             if len(projectiles) <= 20:
-                projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), 5, self.left, (255,255,255)))
+                projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), 5, self.isLeft, (255,255,255)))
 
 class Enemy(object):
     def __init__(self, width, height, x):
         #Constant attrubutes
         self.WALK_LEFT = [pygame.image.load('textures/L1E.png'), pygame.image.load('textures/L2E.png'), pygame.image.load('textures/L3E.png'), pygame.image.load('textures/L4E.png'), pygame.image.load('textures/L5E.png'), pygame.image.load('textures/L6E.png'), pygame.image.load('textures/L7E.png'), pygame.image.load('textures/L8E.png')]
-        self.WALK_RIGHT = [pygame.transform.flip(self.WALK_LEFT[0], True, False), pygame.transform.flip(self.WALK_LEFT[1], True, False), pygame.transform.flip(self.WALK_LEFT[2], True, False), pygame.transform.flip(self.WALK_LEFT[3], True, False), pygame.transform.flip(self.WALK_LEFT[4], True, False), pygame.transform.flip(self.WALK_LEFT[5], True, False), pygame.transform.flip(self.WALK_LEFT[6], True, False), pygame.transform.flip(self.WALK_LEFT[7], True, False)]
+        self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7])]
         self.ATTACK_LEFT = [pygame.image.load('textures/L9E.png'), pygame.image.load('textures/L10E.png'), pygame.image.load('textures/L11E.png')]
-        self.ATTACK_RIGHT = [pygame.transform.flip(self.ATTACK_LEFT[0], True, False), pygame.transform.flip(self.ATTACK_LEFT[1], True, False), pygame.transform.flip(self.ATTACK_LEFT[2], True, False)]
+        self.ATTACK_RIGHT = [flip_picture(self.ATTACK_LEFT[0]), flip_picture(self.ATTACK_LEFT[1]), flip_picture(self.ATTACK_LEFT[2])]
         self.WIDTH = width
         self.HEIGHT = height
-        self.velocity = 3
+        self.velocity = 2
         self.FALLCONST = 0.3
-        self.HITBOXCONST = (10, 8, -20, -10)
+        self.LEFT_HITBOXCONST = (27, 8, -37, -10)
+        self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
 
         #Variable attributes
         self.x = x
@@ -117,9 +118,9 @@ class Enemy(object):
         self.ze_padel = False
         self.standing = True
         self.walk_count = 0
-        self.left = False
+        self.isLeft = False
         self.closest_player_pos = None
-        self.attack = True
+        self.attack = False
         self.attack_count = -1
         self.hitbox = None
 
@@ -129,14 +130,14 @@ class Enemy(object):
             self.walk_count = 0
 
         if self.attack:
-            if self.left:
+            if self.isLeft:
                 window.blit(self.ATTACK_LEFT[self.attack_count], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
-        elif self.left:
+        elif self.isLeft:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
             pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
@@ -150,10 +151,12 @@ class Enemy(object):
             self.fall()
         else:
             self.poisci_najblizjega()
+            self.check_move()
 
-        self.check_move()
-
-        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
+        if self.isLeft:
+            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.LEFT_HITBOXCONST))
+        else:
+            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.RIGHT_HITBOXCONST))
         return True
 
     def fall(self):
@@ -166,29 +169,29 @@ class Enemy(object):
             self.ze_padel = True
 
     def check_move(self):
-        if self.closest_player_pos != None and abs(self.x - self.closest_player_pos[0]) <= self.velocity:
+        if abs(self.x - self.closest_player_pos[0]) <= self.velocity:
             self.x = self.closest_player_pos[0]
             self.make_attack()
 
-        elif self.closest_player_pos != None and self.x > self.closest_player_pos[0]:
+        elif self.x > self.closest_player_pos[0]:
             self.attack = False
-            if self.left:
+            if self.isLeft:
                 self.walk_count += 1
                 self.x -= self.velocity
             else:
-                self.left = True
+                self.isLeft = True
                 self.walk_count = 0
 
-        elif self.closest_player_pos != None and self.x < self.closest_player_pos[0]:
+        elif self.x < self.closest_player_pos[0]:
             self.attack = False
-            if not self.left:
+            if not self.isLeft:
                 self.walk_count += 1
                 self.x += self.velocity
             else:
-                self.left = False
+                self.isLeft = False
                 self.walk_count = 0
         else:
-            self.standing = True
+            pass
 
     def poisci_najblizjega(self):
         oddaljenosti = [abs(self.x - player.x) for player in players]
@@ -202,6 +205,9 @@ class Enemy(object):
         else:
             self.attack = False
             self.attack_count = -1
+
+    def hit(self):
+        print("Enemy hit")
 
 class Projectile(object):
     def __init__(self, x, y, radius, left, color):
@@ -251,6 +257,9 @@ def draw_window():
 
     pygame.display.update()
 
+def flip_picture(picture):
+    return pygame.transform.flip(picture, True, False)
+
 pygame.init()
 
 display_width = 800
@@ -267,8 +276,8 @@ bg = pygame.image.load('textures/luna.png')
 game_run = True
 
 players = []
-projectiles = []
 enemies = []
+projectiles = []
 players.append(Player(64, 64))
 enemies.append(Enemy(64, 64, 400))
 
