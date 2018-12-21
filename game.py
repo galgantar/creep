@@ -208,8 +208,10 @@ class Projectile(object):
         #Constant attributes
         self.velocity = 7
         self.color = color
-        self.radius = radius
+        self.RADIUS = radius
         self.y = y
+        self.isLeft = left
+        self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
         if left:
             self.direction_coefficient = -1
         else:
@@ -217,17 +219,23 @@ class Projectile(object):
 
         #Variable attributes
         self.x = x
+        self.hitbox = None
 
     def exist(self):
-        if self.x + self.radius*2 < display_width and self.x >= 0:
+        if self.x + self.RADIUS*2 < display_width and self.x >= 0:
             self.x += self.velocity * self.direction_coefficient
+            if self.isLeft:
+                self.hitbox = tuple(first+last for first, last in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
+            else:
+                self.hitbox = tuple(first+last for first, last in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
             return True
         else:
             return False
 
     def draw(self):
         global window
-        pygame.draw.circle(window, self.color, (self.x, self.y), self.radius)
+        pygame.draw.circle(window, self.color, (self.x, self.y), self.RADIUS)
+        pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
 def draw_window():
     window.blit(bg, (0,0))
