@@ -10,8 +10,10 @@ class Player(object):
         self.WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
         self.HITBOXCONST = (17, 13, -33, -13)
+        self.MAXSHOOTCOUNT = 15
 
         #Variable attributes
+        self.health = 100
         self.x = int(display_width/2 - self.WIDTH/2)
         self.y = display_height - self.HEIGHT
         self.isJump = False
@@ -20,6 +22,7 @@ class Player(object):
         self.jump_count = 10
         self.walk_count = 0
         self.hitbox = None
+        self.shoot_count = 0
 
     def draw(self):
         global window
@@ -45,8 +48,11 @@ class Player(object):
         self.check_fire()
         self.check_jump()
         self.check_move()
-        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
-        return True
+        self.generate_hitbox()
+        if self.health > 0:
+            return True
+        else:
+            return False
 
     def check_move(self):
         if keys[pygame.K_LEFT]:
@@ -86,16 +92,25 @@ class Player(object):
                 if self.jump_count < 0:
                     predznak = -1
 
-                self.y -= self.jump_count**2 * predznak * self.JUMPCONST
+                self.y -= int(self.jump_count**2 * predznak * self.JUMPCONST)
                 self.jump_count -= 1
             else:
                 self.isJump = False
                 self.jump_count = 10
 
     def check_fire(self):
-        if keys[pygame.K_SPACE]:
-            if len(projectiles) <= 20:
+        if self.shoot_count != 0:
+            self.shoot_count -= 1
+        if keys[pygame.K_SPACE] and self.shoot_count == 0:
+            if len(projectiles) <= 10:
+                self.shoot_count = self.MAXSHOOTCOUNT
                 projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), 5, self.isLeft, (255,255,255)))
+
+    def generate_hitbox(self):
+        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
+
+    def get_hit(self):
+        self.health -= 10
 
 class Enemy(object):
     def __init__(self, width, height, x):
@@ -112,15 +127,16 @@ class Enemy(object):
         self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
 
         #Variable attributes
+        self.health = 100
         self.x = x
         self.y = 0
         self.fall_count = 0
         self.ze_padel = False
-        self.standing = True
+        self.standing = False
         self.walk_count = 0
         self.isLeft = False
-        self.closest_player_pos = None
-        self.attack = False
+        self.closest_player = None
+        self.inAttack = False
         self.attack_count = -1
         self.hitbox = None
 
@@ -129,12 +145,20 @@ class Enemy(object):
         if self.walk_count >= 16:
             self.walk_count = 0
 
-        if self.attack:
+        if self.inAttack:
             if self.isLeft:
                 window.blit(self.ATTACK_LEFT[self.attack_count], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+
+        elif self.standing:
+            if self.isLeft:
+                window.blit(self.WALK_LEFT[0], (self.x, self.y))
+                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+            else:
+                window.blit(self.WALK_RIGHT[0], (self.x, self.y))
                 pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
         elif self.isLeft:
@@ -147,19 +171,30 @@ class Enemy(object):
     def exist(self):
         global players
 
-        if not self.ze_padel:
-            self.fall()
+        if self.find_closest_player():
+            if not self.ze_padel:
+                self.fall()
+            else:
+                self.check_hit()
+                self.check_attack()
+                if not self.inAttack:
+                    self.check_move()
         else:
-            self.poisci_najblizjega()
-            self.check_move()
+            self.inAttack = False
+            self.standing = True
+        self.generate_hitbox()
 
-        if self.isLeft:
-            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.LEFT_HITBOXCONST))
+        if self.health > 0:
+            return True
         else:
-            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.RIGHT_HITBOXCONST))
-        return True
+            return False
 
     def fall(self):
+        if self.x < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+            self.isLeft = False
+        else:
+            self.isLeft = True
+
         if self.y + self.HEIGHT > display_height:
             self.y = display_height - self.HEIGHT
         elif self.y < display_height - self.HEIGHT:
@@ -169,12 +204,8 @@ class Enemy(object):
             self.ze_padel = True
 
     def check_move(self):
-        if abs(self.x - self.closest_player_pos[0]) <= self.velocity:
-            self.x = self.closest_player_pos[0]
-            self.make_attack()
-
-        elif self.x > self.closest_player_pos[0]:
-            self.attack = False
+        if self.x + (self.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+            self.inAttack = False
             if self.isLeft:
                 self.walk_count += 1
                 self.x -= self.velocity
@@ -182,8 +213,8 @@ class Enemy(object):
                 self.isLeft = True
                 self.walk_count = 0
 
-        elif self.x < self.closest_player_pos[0]:
-            self.attack = False
+        elif self.x + (self.WIDTH//2) < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+            self.inAttack = False
             if not self.isLeft:
                 self.walk_count += 1
                 self.x += self.velocity
@@ -193,21 +224,41 @@ class Enemy(object):
         else:
             pass
 
-    def poisci_najblizjega(self):
-        oddaljenosti = [abs(self.x - player.x) for player in players]
-        self.closest_player_pos = (players[oddaljenosti.index(min(oddaljenosti))].x, players[oddaljenosti.index(min(oddaljenosti))].y)
-
-    def make_attack(self):
-        self.attack = True
-
-        if self.attack_count < 2:
-            self.attack_count += 1
+    def find_closest_player(self):
+        if len(players) > 0:
+            oddaljenosti = [abs(self.x - player.x) for player in players]
+            self.closest_player = players[oddaljenosti.index(min(oddaljenosti))]
+            return True
         else:
-            self.attack = False
-            self.attack_count = -1
+            return False
 
-    def hit(self):
-        print("Enemy hit")
+    def check_attack(self):
+        if check_collision(self.hitbox, self.closest_player.hitbox):
+            self.inAttack = True
+
+            if self.attack_count < 2:
+                self.attack_count += 1
+            else:
+                self.attack_count = -1
+                self.closest_player.get_hit()
+
+        else:
+            self.inAttack = False
+
+    def generate_hitbox(self):
+        if self.isLeft:
+            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.LEFT_HITBOXCONST))
+        else:
+            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.RIGHT_HITBOXCONST))
+
+    def check_hit(self):
+        for projectile in projectiles:
+            if projectile.hitbox != None and check_collision(self.hitbox, projectile.hitbox) and projectile.isDangerous:
+                projectile.make_hit()
+                self.get_hit()
+
+    def get_hit(self):
+        self.health -= 30
 
 class Projectile(object):
     def __init__(self, x, y, radius, left, color):
@@ -226,9 +277,13 @@ class Projectile(object):
         #Variable attributes
         self.x = x
         self.hitbox = None
+        self.hit_countdown = 1
+        self.hit = False
+        self.isDangerous = True
 
     def exist(self):
-        if self.x + self.RADIUS*2 < display_width and self.x >= 0:
+        inside_screen = self.x + self.RADIUS*2 < display_width and self.x >= 0
+        if inside_screen and self.execute_hit():
             self.x += self.velocity * self.direction_coefficient
             if self.isLeft:
                 self.hitbox = tuple(first+last for first, last in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
@@ -242,6 +297,21 @@ class Projectile(object):
         global window
         pygame.draw.circle(window, self.color, (self.x, self.y), self.RADIUS)
         pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+
+    def make_hit(self):
+        """Method called only by other objects"""
+        self.hit = True
+        self.isDangerous = False
+
+    def execute_hit(self):
+        if self.hit:
+            if self.hit_countdown > 0:
+                self.hit_countdown -= 1
+                return True
+            else:
+                return False
+        else:
+            return True
 
 def draw_window():
     window.blit(bg, (0,0))
@@ -259,6 +329,15 @@ def draw_window():
 
 def flip_picture(picture):
     return pygame.transform.flip(picture, True, False)
+
+def check_collision(first, second):
+    x_collision = first[0] < second[0] + second[2] and second[0] < first[0] + first[2]
+    y_collision = first[1] < second[1] + second[3] and second[1] < first[1] + first[3]
+
+    if x_collision and y_collision:
+        return True
+    else:
+        return False
 
 pygame.init()
 
