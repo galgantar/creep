@@ -32,17 +32,13 @@ class Player(object):
         if self.standing:
             if self.isLeft:
                 window.blit(self.WALK_LEFT[0], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.WALK_RIGHT[0], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
         elif self.isLeft:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
-            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
             window.blit(self.WALK_RIGHT[self. walk_count//2], (self.x, self.y))
-            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
     def exist(self):
         self.check_fire()
@@ -148,25 +144,19 @@ class Enemy(object):
         if self.inAttack:
             if self.isLeft:
                 window.blit(self.ATTACK_LEFT[self.attack_count], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
         elif self.standing:
             if self.isLeft:
                 window.blit(self.WALK_LEFT[0], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             else:
                 window.blit(self.WALK_RIGHT[0], (self.x, self.y))
-                pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
         elif self.isLeft:
             window.blit(self.WALK_LEFT[self.walk_count//2], (self.x, self.y))
-            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
         else:
             window.blit(self.WALK_RIGHT[self.walk_count//2], (self.x, self.y))
-            pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
     def exist(self):
         global players
@@ -281,6 +271,10 @@ class Projectile(object):
         self.hit = False
         self.isDangerous = True
 
+    def draw(self):
+        global window
+        pygame.draw.circle(window, self.color, (self.x, self.y), self.RADIUS)
+
     def exist(self):
         inside_screen = self.x + self.RADIUS*2 < display_width and self.x >= 0
         if inside_screen and self.execute_hit():
@@ -292,11 +286,6 @@ class Projectile(object):
             return True
         else:
             return False
-
-    def draw(self):
-        global window
-        pygame.draw.circle(window, self.color, (self.x, self.y), self.RADIUS)
-        pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
 
     def make_hit(self):
         """Method called only by other objects"""
