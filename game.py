@@ -1,4 +1,5 @@
 import pygame
+import random
 
 class Player(object):
     def __init__(self, width, height):
@@ -11,6 +12,7 @@ class Player(object):
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
         self.HITBOXCONST = (17, 13, -33, -13)
         self.MAXSHOOTCOUNT = 15
+        self.BULLETSOUND = pygame.mixer.Sound("sounds/bullet.wav")
 
         #Variable attributes
         self.health = 100
@@ -101,6 +103,7 @@ class Player(object):
             self.shoot_count -= 1
         if keys[pygame.K_SPACE] and self.shoot_count == 0:
             if len(projectiles) <= 10:
+                self.BULLETSOUND.play()
                 self.shoot_count = self.MAXSHOOTCOUNT
                 projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), 5, self.isLeft, (255,255,255)))
 
@@ -123,6 +126,7 @@ class Enemy(object):
         self.FALLCONST = 0.3
         self.LEFT_HITBOXCONST = (27, 8, -37, -10)
         self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
+        self.HITSOUND = pygame.mixer.Sound("sounds/hit.wav")
 
         #Variable attributes
         self.health = 100
@@ -252,6 +256,7 @@ class Enemy(object):
                 self.get_hit()
 
     def get_hit(self):
+        self.HITSOUND.play()
         self.health -= 30
 
 class Projectile(object):
@@ -346,6 +351,8 @@ def display_health_bar(hitbox, health):
     pygame.draw.rect(window, (255, 0, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, hitbox[2] + healthBarResize*2, 10))
     pygame.draw.rect(window, (0, 255, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, ((hitbox[2] + healthBarResize*2)*health)//100, 10))
 
+def spawn_enemies():
+    pass
 
 pygame.init()
 
@@ -360,6 +367,8 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("calibri", 30)
 
 bg = pygame.image.load('textures/luna.png')
+pygame.mixer.music.load("sounds/music.mp3")
+pygame.mixer.music.play(-1)
 game_run = True
 
 healthBarResize = 10
@@ -371,6 +380,9 @@ players.append(Player(64, 64))
 enemies.append(Enemy(64, 64, 400))
 enemies.append(Enemy(64, 64, 100))
 enemies.append(Enemy(64, 64, 700))
+enemies.append(Enemy(64, 64, 500))
+enemies.append(Enemy(64, 64, 600))
+enemies.append(Enemy(64, 64, 450))
 
 while game_run:
     for event in pygame.event.get():
