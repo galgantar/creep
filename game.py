@@ -26,6 +26,8 @@ class Player(object):
 
     def draw(self):
         global window
+        display_health("My health: " + str(self.health))
+
         if self.walk_count >= 18:
             self.walk_count = 0
 
@@ -138,6 +140,8 @@ class Enemy(object):
 
     def draw(self):
         global window
+        display_health_bar(self.hitbox, self.health)
+
         if self.walk_count >= 16:
             self.walk_count = 0
 
@@ -328,6 +332,21 @@ def check_collision(first, second):
     else:
         return False
 
+def display_health(displayText):
+    global window
+    global font
+    global displayTextStart
+
+    text = font.render(displayText, True, (255, 255, 255))
+    currentSize = text.get_size()[0]
+    window.blit(text, (displayTextStart, 0))
+    displayTextStart += currentSize + 20
+
+def display_health_bar(hitbox, health):
+    pygame.draw.rect(window, (255, 0, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, hitbox[2] + healthBarResize*2, 10))
+    pygame.draw.rect(window, (0, 255, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, ((hitbox[2] + healthBarResize*2)*health)//100, 10))
+
+
 pygame.init()
 
 display_width = 800
@@ -338,23 +357,27 @@ window = pygame.display.set_mode((display_width, display_height))
 pygame.display.set_caption("Creep")
 
 clock = pygame.time.Clock()
+font = pygame.font.SysFont("calibri", 30)
 
 bg = pygame.image.load('textures/luna.png')
-
 game_run = True
+
+healthBarResize = 10
 
 players = []
 enemies = []
 projectiles = []
 players.append(Player(64, 64))
 enemies.append(Enemy(64, 64, 400))
+enemies.append(Enemy(64, 64, 100))
+enemies.append(Enemy(64, 64, 700))
 
 while game_run:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_run = False
 
-    clock.tick(27)
+    clock.tick(30)
     keys = pygame.key.get_pressed()
 
     for player in players:
@@ -369,6 +392,7 @@ while game_run:
         if not projectile.exist():
             projectiles.remove(projectile)
 
+    displayTextStart = 0
     draw_window()
 
 pygame.quit()
