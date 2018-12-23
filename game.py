@@ -12,7 +12,6 @@ class Player(object):
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
         self.HITBOXCONST = (17, 13, -33, -13)
         self.MAXSHOOTCOUNT = 15
-        self.BULLETSOUND = pygame.mixer.Sound("sounds/bullet.wav")
 
         #Variable attributes
         self.health = 100
@@ -49,10 +48,37 @@ class Player(object):
         self.check_jump()
         self.check_move()
         self.generate_hitbox()
+
         if self.health > 0:
             return True
         else:
             return False
+
+    def check_fire(self):
+        if self.shoot_count < self.MAXSHOOTCOUNT:
+            self.shoot_count += 1
+        if keys[pygame.K_SPACE] and self.shoot_count == self.MAXSHOOTCOUNT:
+            if len(projectiles) <= 10:
+                self.shoot_count = 0
+                projectile = Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), self.isLeft)
+                projectiles.append(projectile)
+                projectile.SOUND.play()
+
+    def check_jump(self):
+        if not self.isJump:
+            if keys[pygame.K_UP]:
+                self.isJump = True
+        else:
+            if self.jump_count >= -10:
+                predznak = 1
+                if self.jump_count < 0:
+                    predznak = -1
+
+                self.y -= int(self.jump_count**2 * predznak * self.JUMPCONST)
+                self.jump_count -= 1
+            else:
+                self.isJump = False
+                self.jump_count = 10
 
     def check_move(self):
         if keys[pygame.K_LEFT]:
@@ -82,36 +108,11 @@ class Player(object):
         if keys[pygame.K_LEFT] == keys[pygame.K_RIGHT]:
             self.standing = True
 
-    def check_jump(self):
-        if not self.isJump:
-            if keys[pygame.K_UP]:
-                self.isJump = True
-        else:
-            if self.jump_count >= -10:
-                predznak = 1
-                if self.jump_count < 0:
-                    predznak = -1
-
-                self.y -= int(self.jump_count**2 * predznak * self.JUMPCONST)
-                self.jump_count -= 1
-            else:
-                self.isJump = False
-                self.jump_count = 10
-
-    def check_fire(self):
-        if self.shoot_count < self.MAXSHOOTCOUNT:
-            self.shoot_count += 1
-        if keys[pygame.K_SPACE] and self.shoot_count == self.MAXSHOOTCOUNT:
-            if len(projectiles) <= 10:
-                self.BULLETSOUND.play()
-                self.shoot_count = 0
-                projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), self.isLeft))
-
     def generate_hitbox(self):
         self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
 
-    def get_hit(self):
-        self.health -= 10
+    def get_hit(self, damage):
+        self.health -= damage
 
 class Enemy(object):
     def __init__(self, width, height, x):
@@ -126,8 +127,9 @@ class Enemy(object):
         self.FALLCONST = 0.3
         self.LEFT_HITBOXCONST = (27, 8, -37, -10)
         self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
-        self.HITSOUND = pygame.mixer.Sound("sounds/hit.wav")
         self.BETWEENATTACK = 10
+        self.HITSOUND = pygame.mixer.Sound("sounds/hit.wav")
+        self.DAMAGE = 10
 
         #Variable attributes
         self.health = 100
@@ -147,7 +149,8 @@ class Enemy(object):
 
     def draw(self):
         global window
-        display_health_bar(self.hitbox, self.health)
+        if self.hitbox != None and self.health != None:
+            display_health_bar(self.hitbox, self.health)
 
         if self.walk_count >= 16:
             self.walk_count = 0
@@ -172,11 +175,11 @@ class Enemy(object):
     def exist(self):
         global players
 
+        self.check_hit()
         if self.find_closest_player():
             if not self.ze_padel:
                 self.fall()
             else:
-                self.check_hit()
                 self.check_attack()
                 if not self.inAttack:
                     self.check_move()
@@ -243,7 +246,7 @@ class Enemy(object):
                 self.attack_count += 1
             else:
                 self.attack_count = -1
-                self.closest_player.get_hit()
+                self.closest_player.get_hit(self.DAMAGE)
                 self.betweenAttackCount = 0
 
         else:
@@ -259,19 +262,15 @@ class Enemy(object):
 
     def check_hit(self):
         for projectile in projectiles:
-            if projectile.hitbox != None and check_collision(self.hitbox, projectile.hitbox) and projectile.isDangerous:
+            if projectile.hitbox != None and self.hitbox != None and check_collision(self.hitbox, projectile.hitbox) and projectile.isDangerous:
                 projectile.make_hit()
-                self.get_hit(projectile.DAMAGE)
-
-    def get_hit(self, damage):
-        self.HITSOUND.play()
-        self.health -= damage
+                self.HITSOUND.play()
+                self.health -= projectile.DAMAGE
 
 class Projectile(object):
     def __init__(self, x, y, left):
         #Constant attributes
         self.TYPE = self.generate_type()
-        self.velocity = 7
         self.y = y
         if left:
             self.DIRECTION_COEFFICIENT = -1
@@ -281,22 +280,33 @@ class Projectile(object):
         if self.TYPE == "red":
             self.COLOR = (255, 0, 0)
             self.DAMAGE = 100
-            self.RADIUS = 10
+            self.RADIUS = 9
+            self.VELOCITY = 7
+            self.MAXHITCOUNTDOWN = 1
+            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
+
         elif self.TYPE == "green":
             self.COLOR = (0, 255, 0)
             self.DAMAGE = 10
             self.RADIUS = 5
+            self.VELOCITY = 7
+            self.MAXHITCOUNTDOWN = 1
+            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
+
         else:
             self.COLOR = (0, 0, 255)
             self.DAMAGE = 30
-            self.RADIUS = 5
+            self.RADIUS = 7
+            self.VELOCITY = 16
+            self.MAXHITCOUNTDOWN = 0
+            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
 
         self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
 
         #Variable attributes
         self.x = x
         self.hitbox = None
-        self.hit_countdown = 1
+        self.hit_countdown = 0
         self.hit = False
         self.isDangerous = True
 
@@ -307,14 +317,14 @@ class Projectile(object):
     def exist(self):
         inside_screen = self.x + self.RADIUS*2 < display_width and self.x >= 0
         if inside_screen and self.execute_hit():
-            self.x += self.velocity * self.DIRECTION_COEFFICIENT
+            self.x += self.VELOCITY * self.DIRECTION_COEFFICIENT
             self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
             return True
         else:
             return False
 
     def generate_type(self):
-        if calculate_possibility_result(10):
+        if calculate_possibility_result(20):
             return "red"
         elif calculate_possibility_result(50):
             return "green"
@@ -329,8 +339,8 @@ class Projectile(object):
 
     def execute_hit(self):
         if self.hit and not self.TYPE == "green":
-            if self.hit_countdown > 0:
-                self.hit_countdown -= 1
+            if self.hit_countdown < self.MAXHITCOUNTDOWN:
+                self.hit_countdown += 1
                 return True
             else:
                 return False
