@@ -24,7 +24,7 @@ class Player(object):
         self.jump_count = 10
         self.walk_count = 0
         self.hitbox = None
-        self.shoot_count = 0
+        self.shoot_count = self.MAXSHOOTCOUNT
 
     def draw(self):
         global window
@@ -99,16 +99,16 @@ class Player(object):
                 self.jump_count = 10
 
     def check_fire(self):
-        if self.shoot_count != 0:
-            self.shoot_count -= 1
-        if keys[pygame.K_SPACE] and self.shoot_count == 0:
+        if self.shoot_count < self.MAXSHOOTCOUNT:
+            self.shoot_count += 1
+        if keys[pygame.K_SPACE] and self.shoot_count == self.MAXSHOOTCOUNT:
             if len(projectiles) <= 10:
                 self.BULLETSOUND.play()
-                self.shoot_count = self.MAXSHOOTCOUNT
-                projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), 5, self.isLeft, (255,255,255)))
+                self.shoot_count = 0
+                projectiles.append(Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), self.isLeft))
 
     def generate_hitbox(self):
-        self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
+        self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
 
     def get_hit(self):
         self.health -= 10
@@ -127,11 +127,12 @@ class Enemy(object):
         self.LEFT_HITBOXCONST = (27, 8, -37, -10)
         self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
         self.HITSOUND = pygame.mixer.Sound("sounds/hit.wav")
+        self.BETWEENATTACK = 10
 
         #Variable attributes
         self.health = 100
         self.x = x
-        self.y = 0
+        self.y = -self.HEIGHT
         self.fall_count = 0
         self.ze_padel = False
         self.standing = False
@@ -141,6 +142,8 @@ class Enemy(object):
         self.inAttack = False
         self.attack_count = -1
         self.hitbox = None
+        self.betweenAttackCount = self.BETWEENATTACK
+        self.isColliding = False
 
     def draw(self):
         global window
@@ -180,6 +183,7 @@ class Enemy(object):
         else:
             self.inAttack = False
             self.standing = True
+            self.fall()
         self.generate_hitbox()
 
         if self.health > 0:
@@ -188,7 +192,7 @@ class Enemy(object):
             return False
 
     def fall(self):
-        if self.x < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+        if self.closest_player != None and self.x < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
             self.isLeft = False
         else:
             self.isLeft = True
@@ -202,8 +206,9 @@ class Enemy(object):
             self.ze_padel = True
 
     def check_move(self):
-        if self.x + (self.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
-            self.inAttack = False
+        if self.isColliding:
+            pass
+        elif self.x + (self.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
             if self.isLeft:
                 self.walk_count += 1
                 self.x -= self.velocity
@@ -212,7 +217,6 @@ class Enemy(object):
                 self.walk_count = 0
 
         elif self.x + (self.WIDTH//2) < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
-            self.inAttack = False
             if not self.isLeft:
                 self.walk_count += 1
                 self.x += self.velocity
@@ -231,7 +235,8 @@ class Enemy(object):
             return False
 
     def check_attack(self):
-        if check_collision(self.hitbox, self.closest_player.hitbox):
+        self.isColliding = check_collision(self.hitbox, self.closest_player.hitbox)
+        if self.isColliding and self.betweenAttackCount == self.BETWEENATTACK:
             self.inAttack = True
 
             if self.attack_count < 2:
@@ -239,39 +244,54 @@ class Enemy(object):
             else:
                 self.attack_count = -1
                 self.closest_player.get_hit()
+                self.betweenAttackCount = 0
 
         else:
             self.inAttack = False
+            if self.betweenAttackCount < self.BETWEENATTACK:
+                self.betweenAttackCount += 1
 
     def generate_hitbox(self):
         if self.isLeft:
-            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.LEFT_HITBOXCONST))
+            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.LEFT_HITBOXCONST))
         else:
-            self.hitbox = tuple(first + last for first, last in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.RIGHT_HITBOXCONST))
+            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.RIGHT_HITBOXCONST))
 
     def check_hit(self):
         for projectile in projectiles:
             if projectile.hitbox != None and check_collision(self.hitbox, projectile.hitbox) and projectile.isDangerous:
                 projectile.make_hit()
-                self.get_hit()
+                self.get_hit(projectile.DAMAGE)
 
-    def get_hit(self):
+    def get_hit(self, damage):
         self.HITSOUND.play()
-        self.health -= 30
+        self.health -= damage
 
 class Projectile(object):
-    def __init__(self, x, y, radius, left, color):
+    def __init__(self, x, y, left):
         #Constant attributes
+        self.TYPE = self.generate_type()
         self.velocity = 7
-        self.color = color
-        self.RADIUS = radius
         self.y = y
-        self.isLeft = left
-        self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
         if left:
-            self.direction_coefficient = -1
+            self.DIRECTION_COEFFICIENT = -1
         else:
-            self.direction_coefficient = 1
+            self.DIRECTION_COEFFICIENT = 1
+
+        if self.TYPE == "red":
+            self.COLOR = (255, 0, 0)
+            self.DAMAGE = 100
+            self.RADIUS = 10
+        elif self.TYPE == "green":
+            self.COLOR = (0, 255, 0)
+            self.DAMAGE = 10
+            self.RADIUS = 5
+        else:
+            self.COLOR = (0, 0, 255)
+            self.DAMAGE = 30
+            self.RADIUS = 5
+
+        self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
 
         #Variable attributes
         self.x = x
@@ -282,27 +302,33 @@ class Projectile(object):
 
     def draw(self):
         global window
-        pygame.draw.circle(window, self.color, (self.x, self.y), self.RADIUS)
+        pygame.draw.circle(window, self.COLOR, (self.x, self.y), self.RADIUS)
 
     def exist(self):
         inside_screen = self.x + self.RADIUS*2 < display_width and self.x >= 0
         if inside_screen and self.execute_hit():
-            self.x += self.velocity * self.direction_coefficient
-            if self.isLeft:
-                self.hitbox = tuple(first+last for first, last in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
-            else:
-                self.hitbox = tuple(first+last for first, last in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
+            self.x += self.velocity * self.DIRECTION_COEFFICIENT
+            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
             return True
         else:
             return False
 
+    def generate_type(self):
+        if calculate_possibility_result(10):
+            return "red"
+        elif calculate_possibility_result(50):
+            return "green"
+        else:
+            return "blue"
+
     def make_hit(self):
         """Method called only by other objects"""
         self.hit = True
-        self.isDangerous = False
+        if not self.TYPE == "green":
+            self.isDangerous = False
 
     def execute_hit(self):
-        if self.hit:
+        if self.hit and not self.TYPE == "green":
             if self.hit_countdown > 0:
                 self.hit_countdown -= 1
                 return True
@@ -329,6 +355,7 @@ def flip_picture(picture):
     return pygame.transform.flip(picture, True, False)
 
 def check_collision(first, second):
+    """fuction checks collision of two given hitboxes"""
     x_collision = first[0] < second[0] + second[2] and second[0] < first[0] + first[2]
     y_collision = first[1] < second[1] + second[3] and second[1] < first[1] + first[3]
 
@@ -351,8 +378,16 @@ def display_health_bar(hitbox, health):
     pygame.draw.rect(window, (255, 0, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, hitbox[2] + healthBarResize*2, 10))
     pygame.draw.rect(window, (0, 255, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, ((hitbox[2] + healthBarResize*2)*health)//100, 10))
 
-def spawn_enemies():
-    pass
+def calculate_possibility_result(possibility):
+    """function returns resoult with the given possibility"""
+    if random.randint(1, 100) <= possibility:
+        return True
+    else:
+        return False
+
+def spawn_enemies(possibility):
+    if calculate_possibility_result(possibility):
+        enemies.append(Enemy(64, 64, random.randint(0, display_width-64)))
 
 pygame.init()
 
@@ -376,13 +411,8 @@ healthBarResize = 10
 players = []
 enemies = []
 projectiles = []
+finalEnemyCount = 5
 players.append(Player(64, 64))
-enemies.append(Enemy(64, 64, 400))
-enemies.append(Enemy(64, 64, 100))
-enemies.append(Enemy(64, 64, 700))
-enemies.append(Enemy(64, 64, 500))
-enemies.append(Enemy(64, 64, 600))
-enemies.append(Enemy(64, 64, 450))
 
 while game_run:
     for event in pygame.event.get():
@@ -391,6 +421,9 @@ while game_run:
 
     clock.tick(30)
     keys = pygame.key.get_pressed()
+
+    if len(enemies) < finalEnemyCount:
+        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
 
     for player in players:
         if not player.exist():
