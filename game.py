@@ -1,21 +1,32 @@
 import pygame
 import random
+from enum import Enum, auto
+
+class bulletType(Enum):
+    RED = auto()
+    GREEN = auto()
+    BLUE = auto()
+
+class inputType(Enum):
+    KEYBOARD = auto()
+
 
 class Player(object):
-    def __init__(self, width, height):
+    def __init__(self, inputForm):
         #Constant attributes
-        self.WIDTH = width
-        self.HEIGHT = height
+        self.INPUTTYPE = inputForm
         self.velocity = 5
         self.JUMPCONST = 0.5
-        self.WALK_LEFT = [pygame.image.load('textures/L1.png'), pygame.image.load('textures/L2.png'), pygame.image.load('textures/L3.png'), pygame.image.load('textures/L4.png'), pygame.image.load('textures/L5.png'), pygame.image.load('textures/L6.png'), pygame.image.load('textures/L7.png'), pygame.image.load('textures/L8.png'), pygame.image.load('textures/L9.png')]
+        self.WALK_LEFT = [pygame.image.load(texture_location+'L1.png'), pygame.image.load(texture_location+'L2.png'), pygame.image.load(texture_location+'L3.png'), pygame.image.load(texture_location+'L4.png'), pygame.image.load(texture_location+'L5.png'), pygame.image.load(texture_location+'L6.png'), pygame.image.load(texture_location+'L7.png'), pygame.image.load(texture_location+'L8.png'), pygame.image.load(texture_location+'L9.png')]
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
+        self.WIDTH = self.WALK_LEFT[0].get_size()[0]
+        self.HEIGHT = self.WALK_LEFT[0].get_size()[1]
         self.HITBOXCONST = (17, 13, -33, -13)
         self.MAXSHOOTCOUNT = 15
 
         #Variable attributes
         self.health = 100
-        self.x = int(display_width/2 - self.WIDTH/2)
+        self.x = random.randint(0, display_width-self.WIDTH)
         self.y = display_height - self.HEIGHT
         self.isJump = False
         self.standing = True
@@ -24,6 +35,12 @@ class Player(object):
         self.walk_count = 0
         self.hitbox = None
         self.shoot_count = self.MAXSHOOTCOUNT
+
+        #Command attrubutes
+        self.inputLEFT = None
+        self.inputRIGHT = None
+        self.inputUP = None
+        self.inputFIRE = None
 
     def draw(self):
         global window
@@ -44,6 +61,7 @@ class Player(object):
             window.blit(self.WALK_RIGHT[self. walk_count//2], (self.x, self.y))
 
     def exist(self):
+        self.get_input_vaues()
         self.check_fire()
         self.check_jump()
         self.check_move()
@@ -54,10 +72,18 @@ class Player(object):
         else:
             return False
 
+    def get_input_vaues(self):
+        if self.INPUTTYPE == inputType.KEYBOARD:
+            keys = pygame.key.get_pressed()
+            self.inputLEFT = keys[pygame.K_LEFT]
+            self.inputRIGHT = keys[pygame.K_RIGHT]
+            self.inputUP = keys[pygame.K_UP]
+            self.inputFIRE = keys[pygame.K_SPACE]
+
     def check_fire(self):
         if self.shoot_count < self.MAXSHOOTCOUNT:
             self.shoot_count += 1
-        if keys[pygame.K_SPACE] and self.shoot_count == self.MAXSHOOTCOUNT:
+        if self.inputFIRE and self.shoot_count == self.MAXSHOOTCOUNT:
             if len(projectiles) <= 10:
                 self.shoot_count = 0
                 projectile = Projectile(self.x + self.WIDTH//2, int(self.y + self.HEIGHT/2), self.isLeft)
@@ -66,7 +92,7 @@ class Player(object):
 
     def check_jump(self):
         if not self.isJump:
-            if keys[pygame.K_UP]:
+            if self.inputUP:
                 self.isJump = True
         else:
             if self.jump_count >= -10:
@@ -81,7 +107,7 @@ class Player(object):
                 self.jump_count = 10
 
     def check_move(self):
-        if keys[pygame.K_LEFT]:
+        if self.inputLEFT:
             if not self.isLeft:
                 self.walk_count = 0
             self.standing = False
@@ -93,7 +119,7 @@ class Player(object):
             else:
                 self.x -= self.velocity
 
-        if keys[pygame.K_RIGHT]:
+        if self.inputRIGHT:
             if self.isLeft:
                 self.walk_count = 0
                 self.isLeft = False
@@ -105,7 +131,7 @@ class Player(object):
             else:
                 self.x += self.velocity
 
-        if keys[pygame.K_LEFT] == keys[pygame.K_RIGHT]:
+        if self.inputLEFT == self.inputRIGHT:
             self.standing = True
 
     def generate_hitbox(self):
@@ -115,20 +141,20 @@ class Player(object):
         self.health -= damage
 
 class Enemy(object):
-    def __init__(self, width, height, x):
+    def __init__(self, x):
         #Constant attrubutes
-        self.WALK_LEFT = [pygame.image.load('textures/L1E.png'), pygame.image.load('textures/L2E.png'), pygame.image.load('textures/L3E.png'), pygame.image.load('textures/L4E.png'), pygame.image.load('textures/L5E.png'), pygame.image.load('textures/L6E.png'), pygame.image.load('textures/L7E.png'), pygame.image.load('textures/L8E.png')]
+        self.WALK_LEFT = [pygame.image.load(texture_location+'L1E.png'), pygame.image.load(texture_location+'L2E.png'), pygame.image.load(texture_location+'L3E.png'), pygame.image.load(texture_location+'L4E.png'), pygame.image.load(texture_location+'L5E.png'), pygame.image.load(texture_location+'L6E.png'), pygame.image.load(texture_location+'L7E.png'), pygame.image.load(texture_location+'L8E.png')]
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7])]
-        self.ATTACK_LEFT = [pygame.image.load('textures/L9E.png'), pygame.image.load('textures/L10E.png'), pygame.image.load('textures/L11E.png')]
+        self.ATTACK_LEFT = [pygame.image.load(texture_location+'L9E.png'), pygame.image.load(texture_location+'L10E.png'), pygame.image.load(texture_location+'L11E.png')]
         self.ATTACK_RIGHT = [flip_picture(self.ATTACK_LEFT[0]), flip_picture(self.ATTACK_LEFT[1]), flip_picture(self.ATTACK_LEFT[2])]
-        self.WIDTH = width
-        self.HEIGHT = height
+        self.WIDTH = self.WALK_LEFT[0].get_size()[0]
+        self.HEIGHT = self.WALK_LEFT[0].get_size()[1]
         self.velocity = 2
         self.FALLCONST = 0.3
         self.LEFT_HITBOXCONST = (27, 8, -37, -10)
         self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
         self.BETWEENATTACK = 10
-        self.HITSOUND = pygame.mixer.Sound("sounds/hit.wav")
+        self.HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
         self.DAMAGE = 10
 
         #Variable attributes
@@ -277,21 +303,21 @@ class Projectile(object):
         else:
             self.DIRECTION_COEFFICIENT = 1
 
-        if self.TYPE == "red":
+        if self.TYPE == bulletType.RED:
             self.COLOR = (255, 0, 0)
             self.DAMAGE = 100
             self.RADIUS = 9
-            self.VELOCITY = 7
+            self.VELOCITY = 4
             self.MAXHITCOUNTDOWN = 1
-            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
+            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
 
-        elif self.TYPE == "green":
+        elif self.TYPE == bulletType.GREEN:
             self.COLOR = (0, 255, 0)
             self.DAMAGE = 10
             self.RADIUS = 5
             self.VELOCITY = 7
             self.MAXHITCOUNTDOWN = 1
-            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
+            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
 
         else:
             self.COLOR = (0, 0, 255)
@@ -299,7 +325,7 @@ class Projectile(object):
             self.RADIUS = 7
             self.VELOCITY = 16
             self.MAXHITCOUNTDOWN = 0
-            self.SOUND = pygame.mixer.Sound("sounds/bullet.wav")
+            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
 
         self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
 
@@ -325,20 +351,20 @@ class Projectile(object):
 
     def generate_type(self):
         if calculate_possibility_result(20):
-            return "red"
+            return bulletType.RED
         elif calculate_possibility_result(50):
-            return "green"
+            return bulletType.GREEN
         else:
-            return "blue"
+            return bulletType.BLUE
 
     def make_hit(self):
         """Method called only by other objects"""
         self.hit = True
-        if not self.TYPE == "green":
+        if not self.TYPE == bulletType.GREEN:
             self.isDangerous = False
 
     def execute_hit(self):
-        if self.hit and not self.TYPE == "green":
+        if self.hit and not self.TYPE == bulletType.GREEN:
             if self.hit_countdown < self.MAXHITCOUNTDOWN:
                 self.hit_countdown += 1
                 return True
@@ -397,12 +423,14 @@ def calculate_possibility_result(possibility):
 
 def spawn_enemies(possibility):
     if calculate_possibility_result(possibility):
-        enemies.append(Enemy(64, 64, random.randint(0, display_width-64)))
+        enemies.append(Enemy(random.randint(0, display_width-64)))
 
 pygame.init()
 
 display_width = 800
 display_height = 500
+sound_location = "sounds/"
+texture_location = "textures/"
 
 window = pygame.display.set_mode((display_width, display_height))
 #window = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
@@ -411,8 +439,8 @@ pygame.display.set_caption("Creep")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("calibri", 30)
 
-bg = pygame.image.load('textures/luna.png')
-pygame.mixer.music.load("sounds/music.mp3")
+bg = pygame.image.load(texture_location+"luna.png")
+pygame.mixer.music.load(sound_location+"music.mp3")
 pygame.mixer.music.play(-1)
 game_run = True
 
@@ -422,7 +450,7 @@ players = []
 enemies = []
 projectiles = []
 finalEnemyCount = 5
-players.append(Player(64, 64))
+players.append(Player(inputType.KEYBOARD))
 
 while game_run:
     for event in pygame.event.get():
@@ -430,7 +458,6 @@ while game_run:
             game_run = False
 
     clock.tick(30)
-    keys = pygame.key.get_pressed()
 
     if len(enemies) < finalEnemyCount:
         spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
