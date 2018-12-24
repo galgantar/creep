@@ -1,14 +1,14 @@
 import pygame
 import random
-from enum import Enum, auto
+import enum
 
-class bulletType(Enum):
-    RED = auto()
-    GREEN = auto()
-    BLUE = auto()
+class bulletType(enum.Enum):
+    RED = enum.auto()
+    GREEN = enum.auto()
+    BLUE = enum.auto()
 
-class inputType(Enum):
-    KEYBOARD = auto()
+class inputType(enum.Enum):
+    KEYBOARD = enum.auto()
 
 
 class Player(object):
@@ -425,6 +425,8 @@ def spawn_enemies(possibility):
     if calculate_possibility_result(possibility):
         enemies.append(Enemy(random.randint(0, display_width-64)))
 
+pygame.mixer.pre_init(44100, -16, 2, 2048)
+pygame.mixer.init()
 pygame.init()
 
 display_width = 800
