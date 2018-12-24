@@ -426,7 +426,6 @@ def spawn_enemies(possibility):
         enemies.append(Enemy(random.randint(0, display_width-64)))
 
 pygame.mixer.pre_init(44100, -16, 2, 2048)
-pygame.mixer.init()
 pygame.init()
 
 display_width = 800
