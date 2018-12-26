@@ -17,24 +17,27 @@ class Player(object):
         self.INPUTTYPE = inputForm
         self.velocity = 5
         self.JUMPCONST = 0.5
+        self.FALLCONST = 0.5
         self.WALK_LEFT = [pygame.image.load(texture_location+'L1.png'), pygame.image.load(texture_location+'L2.png'), pygame.image.load(texture_location+'L3.png'), pygame.image.load(texture_location+'L4.png'), pygame.image.load(texture_location+'L5.png'), pygame.image.load(texture_location+'L6.png'), pygame.image.load(texture_location+'L7.png'), pygame.image.load(texture_location+'L8.png'), pygame.image.load(texture_location+'L9.png')]
         self.WALK_RIGHT = [flip_picture(self.WALK_LEFT[0]), flip_picture(self.WALK_LEFT[1]), flip_picture(self.WALK_LEFT[2]), flip_picture(self.WALK_LEFT[3]), flip_picture(self.WALK_LEFT[4]), flip_picture(self.WALK_LEFT[5]), flip_picture(self.WALK_LEFT[6]), flip_picture(self.WALK_LEFT[7]), flip_picture(self.WALK_LEFT[8])]
-        self.WIDTH = self.WALK_LEFT[0].get_size()[0]
-        self.HEIGHT = self.WALK_LEFT[0].get_size()[1]
-        self.HITBOXCONST = (17, 13, -33, -13)
+        self.WIDTH = self.WALK_LEFT[0].get_width()
+        self.HEIGHT = self.WALK_LEFT[0].get_height()
+        self.HITBOXCONST = (17, 15, -33, -16)
         self.MAXSHOOTCOUNT = 15
 
         #Variable attributes
         self.health = 100
         self.x = random.randint(0, display_width-self.WIDTH)
-        self.y = display_height - self.HEIGHT
+        self.y = -self.HEIGHT
         self.isJump = False
         self.standing = True
         self.isLeft = False
         self.jump_count = 10
         self.walk_count = 0
+        self.fall_count = 0
         self.hitbox = None
         self.shoot_count = self.MAXSHOOTCOUNT
+        self.current_platform = None
 
         #Command attrubutes
         self.inputLEFT = None
@@ -63,6 +66,7 @@ class Player(object):
     def exist(self):
         self.get_input_vaues()
         self.check_fire()
+        check_fall(self)
         self.check_jump()
         self.check_move()
         self.generate_hitbox()
@@ -92,19 +96,16 @@ class Player(object):
 
     def check_jump(self):
         if not self.isJump:
-            if self.inputUP:
+            if self.inputUP and self.current_platform != None:
                 self.isJump = True
         else:
-            if self.jump_count >= -10:
-                predznak = 1
-                if self.jump_count < 0:
-                    predznak = -1
-
-                self.y -= int(self.jump_count**2 * predznak * self.JUMPCONST)
+            speed = round(self.jump_count**2 * self.JUMPCONST + 0.5) #0.5 must be added in order to correctly round floats smaller than 1
+            if self.jump_count >= 0:
+                self.y -= speed
                 self.jump_count -= 1
             else:
-                self.isJump = False
                 self.jump_count = 10
+                self.isJump = False
 
     def check_move(self):
         if self.inputLEFT:
@@ -138,6 +139,7 @@ class Player(object):
         self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
 
     def get_hit(self, damage):
+        """Method called by class Enemy"""
         self.health -= damage
 
 class Enemy(object):
@@ -150,12 +152,13 @@ class Enemy(object):
         self.WIDTH = self.WALK_LEFT[0].get_size()[0]
         self.HEIGHT = self.WALK_LEFT[0].get_size()[1]
         self.velocity = 2
-        self.FALLCONST = 0.3
-        self.LEFT_HITBOXCONST = (27, 8, -37, -10)
-        self.RIGHT_HITBOXCONST = (10, 8, -37, -10)
+        self.FALLCONST = 0.5
+        self.LEFT_HITBOXCONST = (27, 8, -37, -9)
+        self.RIGHT_HITBOXCONST = (10, 8, -37, -9)
         self.BETWEENATTACK = 10
         self.HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
         self.DAMAGE = 10
+        self.isJump = False
 
         #Variable attributes
         self.health = 100
@@ -172,6 +175,7 @@ class Enemy(object):
         self.hitbox = None
         self.betweenAttackCount = self.BETWEENATTACK
         self.isColliding = False
+        self.current_platform = None
 
     def draw(self):
         global window
@@ -202,17 +206,14 @@ class Enemy(object):
         global players
 
         self.check_hit()
+        check_fall(self)
         if self.find_closest_player():
-            if not self.ze_padel:
-                self.fall()
-            else:
-                self.check_attack()
-                if not self.inAttack:
-                    self.check_move()
+            self.check_attack()
+            if not self.inAttack:
+                self.check_move()
         else:
             self.inAttack = False
             self.standing = True
-            self.fall()
         self.generate_hitbox()
 
         if self.health > 0:
@@ -264,6 +265,9 @@ class Enemy(object):
             return False
 
     def check_attack(self):
+        if self.hitbox == None:
+            return
+
         self.isColliding = check_collision(self.hitbox, self.closest_player.hitbox)
         if self.isColliding and self.betweenAttackCount == self.BETWEENATTACK:
             self.inAttack = True
@@ -373,8 +377,37 @@ class Projectile(object):
         else:
             return True
 
+class Platform(object):
+    def __init__(self, x, y, widthCount):
+        #Constant attributes
+        self.X = x
+        self.Y = y
+        self.WIDTHCOUNT = widthCount
+        self.SURFACE = self.create_surface()
+        self.hitbox = (self.X, self.Y, self.SURFACE.get_width(), self.SURFACE.get_height())
+
+    def draw(self):
+        global window
+        window.blit(self.SURFACE, (self.X, self.Y))
+
+    def exist(self):
+        return True
+
+    def create_surface(self):
+        piece = pygame.image.load(texture_location+"plate.png")
+        newSurface = pygame.Surface((piece.get_width()*self.WIDTHCOUNT, piece.get_height()), pygame.SRCALPHA)
+        totalWidth = 0
+        for x in range(self.WIDTHCOUNT):
+            newSurface.blit(piece, (totalWidth, 0))
+            totalWidth += piece.get_width()
+
+        return newSurface
+
 def draw_window():
     window.blit(bg, (0,0))
+
+    for platform in platforms:
+        platform.draw()
 
     for player in players:
         player.draw()
@@ -386,6 +419,39 @@ def draw_window():
         projectile.draw()
 
     pygame.display.update()
+
+def check_fall(object):
+    if object.hitbox == None:
+        return
+
+    speed = round(object.fall_count**2 * object.FALLCONST + 0.5) #0.5 must be added in order to correctly round floats smaller than 1
+
+    check_platform(object, speed)
+    if object.current_platform == None and not object.isJump:
+        object.y += speed
+        object.fall_count += 1
+    elif not object.isJump:
+        object.fall_count = 0
+        object.y = object.current_platform.hitbox[1] - object.HEIGHT
+
+def check_platform(object, speed):
+    if object.hitbox == None:
+        return
+    if speed == 0:
+        coefficient = 1
+    else:
+        coefficient = 0
+
+    for platform in platforms:
+        x_collision = object.hitbox[0] > platform.hitbox[0] and object.hitbox[0] + object.hitbox[2] < platform.hitbox[0] + platform.hitbox[2]
+        height_match = object.hitbox[1] + object.hitbox[3] + speed >= platform.hitbox[1] - coefficient and object.y + object.HEIGHT <= platform.hitbox[1]
+        notJumping = not object.isJump or object.jump_count == 10 or object.jump_count < 0
+
+        if x_collision and height_match and notJumping:
+            object.current_platform = platform
+            return
+
+    object.current_platform = None
 
 def flip_picture(picture):
     return pygame.transform.flip(picture, True, False)
@@ -450,8 +516,11 @@ healthBarResize = 10
 players = []
 enemies = []
 projectiles = []
+platforms = []
 finalEnemyCount = 5
 players.append(Player(inputType.KEYBOARD))
+platforms.append(Platform(0, 315, 5))
+platforms.append(Platform(0, 470, 8))
 
 while game_run:
     for event in pygame.event.get():
@@ -459,7 +528,6 @@ while game_run:
             game_run = False
 
     clock.tick(30)
-
     if len(enemies) < finalEnemyCount:
         spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
 
