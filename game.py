@@ -236,9 +236,13 @@ class Enemy(object):
             self.ze_padel = True
 
     def check_move(self):
-        if self.isColliding:
+        x_collision = self.hitbox != None and self.hitbox[0] < self.closest_player.hitbox[0] + self.closest_player.hitbox[2] and self.closest_player.hitbox[0] < self.hitbox[0] + self.hitbox[2]
+        if x_collision:
+            self.standing = True
             pass
+
         elif self.x + (self.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+            self.standing = False
             if self.isLeft:
                 self.walk_count += 1
                 self.x -= self.velocity
@@ -247,6 +251,7 @@ class Enemy(object):
                 self.walk_count = 0
 
         elif self.x + (self.WIDTH//2) < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+            self.standing = False
             if not self.isLeft:
                 self.walk_count += 1
                 self.x += self.velocity
@@ -491,13 +496,42 @@ def spawn_enemies(possibility):
     if calculate_possibility_result(possibility):
         enemies.append(Enemy(random.randint(0, display_width-64)))
 
+def generate_platform(xMin, xMax, width, yFloor):
+    """function for random platform generation"""
+    global singlePlatformWidth
+    global singlePlatformHeight
+    global maxPlatformHeight
+
+    if width == 0:
+        return
+
+    number_of_platforms = (xMax - xMin) // (width*singlePlatformWidth + spacingBetweenPlatforms)
+    for n in range(1, number_of_platforms+1):
+        xMin_current = xMin + (((xMax - xMin) // number_of_platforms)*(n-1))
+        xMax_current =  xMin + ((xMax - xMin) // number_of_platforms)*n - spacingBetweenPlatforms
+
+        x = random.randint(xMin_current, xMax_current - width*singlePlatformWidth)
+        y = yFloor - maxPlatformHeight + random.randint(-50, 50)
+
+        if y > biggestSpriteHeight and y < display_height - biggestSpriteHeight - singlePlatformHeight*2:
+            platforms.append(Platform(x, y, width))
+        generate_platform(xMin_current, xMax_current, width-1, y)
+
 pygame.mixer.pre_init(44100, -16, 2, 2048)
 pygame.init()
 
 display_width = 800
 display_height = 500
+
 sound_location = "sounds/"
 texture_location = "textures/"
+
+#Platform generation values
+singlePlatformWidth = 100
+singlePlatformHeight = 31
+maxPlatformHeight = 130
+spacingBetweenPlatforms = 10
+biggestSpriteHeight = 64
 
 window = pygame.display.set_mode((display_width, display_height))
 #window = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
@@ -519,8 +553,9 @@ projectiles = []
 platforms = []
 finalEnemyCount = 5
 players.append(Player(inputType.KEYBOARD))
-platforms.append(Platform(0, 315, 5))
-platforms.append(Platform(0, 470, 8))
+platforms.append(Platform(0, display_height - singlePlatformHeight, 8))
+
+generate_platform(0, display_width, 3, display_height)
 
 while game_run:
     for event in pygame.event.get():
