@@ -473,7 +473,6 @@ def check_collision(first, second):
 
 def display_health(displayText):
     global window
-    global font
     global displayTextStart
 
     text = font.render(displayText, True, (255, 255, 255))
@@ -498,10 +497,6 @@ def spawn_enemies(possibility):
 
 def generate_platform(xMin, xMax, width, yFloor):
     """function for random platform generation"""
-    global singlePlatformWidth
-    global singlePlatformHeight
-    global maxPlatformHeight
-
     if width == 0:
         return
 
