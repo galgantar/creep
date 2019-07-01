@@ -119,10 +119,12 @@ def generate_platform(xMin, xMax, width, yFloor):
         xMax_current =  xMin + ((xMax - xMin) // number_of_platforms)*n - spacingBetweenPlatforms
 
         x = random.randint(xMin_current, xMax_current - width*singlePlatformWidth)
-        y = yFloor - maxPlatformHeight + random.randint(-50, 50)
+        y = yFloor - maxPlatformHeight + random.randint(-30, 30)
 
-        if y > biggestSpriteHeight and y < display_height - biggestSpriteHeight - singlePlatformHeight*2:
+        if y > biggestSpriteHeight:
             platforms.append(Platform(x, y, width))
+        else:
+            print(y)
         generate_platform(xMin_current, xMax_current, width-1, y)
 
 
