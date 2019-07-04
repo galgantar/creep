@@ -2,12 +2,16 @@ import pygame
 import random
 import enum
 
+import time # testing purposes
+
 
 display_width = 800
 display_height = 500
 
 sound_location = "sounds/"
 texture_location = "textures/"
+player_texture_location = "textures/player/"
+enemy_texture_location = "textures/skeleton/"
 
 # Platform generation values
 singlePlatformWidth = 100
@@ -17,7 +21,7 @@ spacingBetweenPlatforms = 10
 biggestSpriteHeight = 64
 
 
-pygame.mixer.pre_init(44100, -16, 2, 2048) # Put here because of sound preloading in Classes
+pygame.mixer.pre_init(44100, -16, 2, 2048) # Put here because of sound preloading in Class attributes
 pygame.init()
 
 
@@ -38,41 +42,15 @@ def draw_window():
 
     pygame.display.update()
 
-def check_fall(object):
-    if object.hitbox == None:
-        return
-
-    speed = round(object.fall_count**2 * Player.FALLCONST + 0.5) # 0.5 must be added in order to correctly round floats smaller than 1
-
-    check_platform(object, speed)
-    if object.current_platform == None and not object.isJump:
-        object.y += speed
-        object.fall_count += 1
-    elif not object.isJump:
-        object.fall_count = 0
-        object.y = object.current_platform.hitbox[1] - object.HEIGHT
-
-def check_platform(object, speed):
-    if object.hitbox == None:
-        return
-    if speed == 0:
-        coefficient = 1
-    else:
-        coefficient = 0
-
-    for platform in platforms:
-        x_collision = object.hitbox[0] > platform.hitbox[0] and object.hitbox[0] + object.hitbox[2] < platform.hitbox[0] + platform.hitbox[2]
-        height_match = object.hitbox[1] + object.hitbox[3] + speed >= platform.hitbox[1] - coefficient and object.y + object.HEIGHT <= platform.hitbox[1]
-        notJumping = not object.isJump or object.jump_count == 10 or object.jump_count < 0
-
-        if x_collision and height_match and notJumping:
-            object.current_platform = platform
-            return
-
-    object.current_platform = None
-
 def flip_picture(picture):
     return pygame.transform.flip(picture, True, False)
+
+def resize_picture(picture, ratio):
+    relation_coefficient = picture.get_width() / picture.get_height()
+    new_height = round(picture.get_height() * ratio)
+    new_width = round(new_height * relation_coefficient)
+
+    return pygame.transform.scale(picture, (new_width, new_height))
 
 def check_collision(first, second):
     """fuction checks collision of two given hitboxes"""
@@ -83,19 +61,6 @@ def check_collision(first, second):
         return True
     else:
         return False
-
-def display_health(displayText):
-    global window
-    global displayTextStart
-
-    text = font.render(displayText, True, (255, 255, 255))
-    currentSize = text.get_size()[0]
-    window.blit(text, (displayTextStart, 0))
-    displayTextStart += currentSize + 20
-
-def display_health_bar(hitbox, health):
-    pygame.draw.rect(window, (255, 0, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, hitbox[2] + healthBarResize*2, 10))
-    pygame.draw.rect(window, (0, 255, 0), (hitbox[0] - healthBarResize, hitbox[1] - 15, ((hitbox[2] + healthBarResize*2)*health)//100, 10))
 
 def calculate_possibility_result(possibility):
     """function returns resoult with the given possibility"""
@@ -123,8 +88,6 @@ def generate_platform(xMin, xMax, width, yFloor):
 
         if y > biggestSpriteHeight:
             platforms.append(Platform(x, y, width))
-        else:
-            print(y)
         generate_platform(xMin_current, xMax_current, width-1, y)
 
 
@@ -137,15 +100,60 @@ class inputType(enum.Enum):
     KEYBOARD = enum.auto()
 
 
-class Player(object):
-    WALK_LEFT = [pygame.image.load(texture_location+'L1.png'), pygame.image.load(texture_location+'L2.png'), pygame.image.load(texture_location+'L3.png'), pygame.image.load(texture_location+'L4.png'), pygame.image.load(texture_location+'L5.png'), pygame.image.load(texture_location+'L6.png'), pygame.image.load(texture_location+'L7.png'), pygame.image.load(texture_location+'L8.png'), pygame.image.load(texture_location+'L9.png')]
-    WALK_RIGHT = [flip_picture(WALK_LEFT[0]), flip_picture(WALK_LEFT[1]), flip_picture(WALK_LEFT[2]), flip_picture(WALK_LEFT[3]), flip_picture(WALK_LEFT[4]), flip_picture(WALK_LEFT[5]), flip_picture(WALK_LEFT[6]), flip_picture(WALK_LEFT[7]), flip_picture(WALK_LEFT[8])]
+class Body(object):
+    """parent class for everything with a human-like body (Enemy and Player classes)"""
+
+    def check_platform(self, speed):
+        if speed == 0:
+            coefficient = 1
+        else:
+            coefficient = 0
+
+        for platform in platforms:
+            x_collision = self.hitbox[0] < platform.hitbox[0] + platform.hitbox[2] and self.hitbox[0] + self.hitbox[2] > platform.hitbox[0]
+            height_match = self.hitbox[1] + self.hitbox[3] + speed >= platform.hitbox[1] - coefficient and self.y + self.HEIGHT <= platform.hitbox[1]
+            notJumping = self.jump_count == 10 or self.jump_count < 0
+
+            if x_collision and height_match and notJumping:
+                self.current_platform = platform
+                return
+
+        self.current_platform = None
+
+    def check_fall(self):
+        speed = round(self.fall_count**2 * Player.FALLCONST)
+
+        self.check_platform(speed)
+        if self.current_platform == None and not self.isJump:
+            self.y += speed
+            self.fall_count += 1
+        elif not self.isJump:
+            self.fall_count = 0
+            self.y = self.current_platform.hitbox[1] - self.HEIGHT
+
+    def display_health(self, displayText):
+        global window
+        global displayTextStart
+
+        text = font.render(displayText, True, (255, 255, 255))
+        currentSize = text.get_size()[0]
+        window.blit(text, (displayTextStart, 0))
+        displayTextStart += currentSize + 20
+
+    def display_health_bar(self):
+        pygame.draw.rect(window, (255, 0, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 15, self.hitbox[2] + healthBarResize*2, 10))
+        pygame.draw.rect(window, (0, 255, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 15, ((self.hitbox[2] + healthBarResize*2)*self.health)//100, 10))
+
+
+class Player(Body):
+    WALK_LEFT = [pygame.image.load(player_texture_location+'L1.png'), pygame.image.load(player_texture_location+'L2.png'), pygame.image.load(player_texture_location+'L3.png'), pygame.image.load(player_texture_location+'L4.png'), pygame.image.load(player_texture_location+'L5.png'), pygame.image.load(player_texture_location+'L6.png'), pygame.image.load(player_texture_location+'L7.png'), pygame.image.load(player_texture_location+'L8.png'), pygame.image.load(player_texture_location+'L9.png')]
+    WALK_RIGHT = list(map(lambda x: flip_picture(x), WALK_LEFT))
     JUMPCONST = 0.5
     FALLCONST = 0.5
     velocity = 5
     WIDTH = WALK_LEFT[0].get_width()
     HEIGHT = WALK_LEFT[0].get_height()
-    HITBOXCONST = (17, 15, -33, -16)
+    HITBOXCONST = (22, 15, -44, -16) # Hitbox format: x, y, width, height
     MAXSHOOTCOUNT = 15
 
     def __init__(self, inputForm):
@@ -174,7 +182,7 @@ class Player(object):
 
     def draw(self):
         global window
-        display_health("My health: " + str(self.health))
+        self.display_health("My health: " + str(self.health))
 
         if self.walk_count >= 18:
             self.walk_count = 0
@@ -191,9 +199,12 @@ class Player(object):
             window.blit(Player.WALK_RIGHT[self. walk_count//2], (self.x, self.y))
 
     def exist(self):
+        if not self.hitbox:
+            self.generate_hitbox()
+
         self.get_input_vaues()
         self.check_fire()
-        check_fall(self)
+        self.check_fall()
         self.check_jump()
         self.check_move()
         self.generate_hitbox()
@@ -226,7 +237,7 @@ class Player(object):
             if self.inputUP and self.current_platform != None:
                 self.isJump = True
         else:
-            speed = round(self.jump_count**2 * Player.JUMPCONST + 0.5) # 0.5 must be added in order to correctly round floats smaller than 1
+            speed = round(self.jump_count**2 * Player.JUMPCONST)
             if self.jump_count >= 0:
                 self.y -= speed
                 self.jump_count -= 1
@@ -269,60 +280,67 @@ class Player(object):
         """Method called by class Enemy"""
         self.health -= damage
 
-class Enemy(object):
-    WALK_LEFT = [pygame.image.load(texture_location+'L1E.png'), pygame.image.load(texture_location+'L2E.png'), pygame.image.load(texture_location+'L3E.png'), pygame.image.load(texture_location+'L4E.png'), pygame.image.load(texture_location+'L5E.png'), pygame.image.load(texture_location+'L6E.png'), pygame.image.load(texture_location+'L7E.png'), pygame.image.load(texture_location+'L8E.png')]
-    WALK_RIGHT = [flip_picture(WALK_LEFT[0]), flip_picture(WALK_LEFT[1]), flip_picture(WALK_LEFT[2]), flip_picture(WALK_LEFT[3]), flip_picture(WALK_LEFT[4]), flip_picture(WALK_LEFT[5]), flip_picture(WALK_LEFT[6]), flip_picture(WALK_LEFT[7])]
-    ATTACK_LEFT = [pygame.image.load(texture_location+'L9E.png'), pygame.image.load(texture_location+'L10E.png'), pygame.image.load(texture_location+'L11E.png')]
-    ATTACK_RIGHT = [flip_picture(ATTACK_LEFT[0]), flip_picture(ATTACK_LEFT[1]), flip_picture(ATTACK_LEFT[2])]
-    WIDTH = WALK_LEFT[0].get_size()[0]
-    HEIGHT = WALK_LEFT[0].get_size()[1]
-    velocity = 2
+class Enemy(Body):
+    WALK_RIGHT_ICONS = [pygame.image.load(enemy_texture_location+'Skeleton-Walk_01.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_02.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_03.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_04.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_05.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_06.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_07.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_08.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_09.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_10.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_11.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_12.png'), pygame.image.load(enemy_texture_location+'Skeleton-Walk_13.png')]
+    WALK_RIGHT = list(map(lambda x: resize_picture(x, 2), WALK_RIGHT_ICONS))
+    WALK_LEFT = list(map(lambda x: flip_picture(x), WALK_RIGHT))
+
+    ATTACK_RIGHT_ICONS = [pygame.image.load(enemy_texture_location+'Skeleton-Attack_01.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_02.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_03.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_04.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_05.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_06.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_07.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_08.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_09.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_10.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_11.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_12.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_13.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_14.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_15.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_16.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_17.png'), pygame.image.load(enemy_texture_location+'Skeleton-Attack_18.png'),]
+    ATTACK_RIGHT = list(map(lambda x: resize_picture(x, 2), ATTACK_RIGHT_ICONS))
+    ATTACK_LEFT = list(map(lambda x: flip_picture(x), ATTACK_RIGHT))
+
+    WIDTH = WALK_LEFT[0].get_width()
+    HEIGHT = WALK_LEFT[0].get_height()
+    velocity = 3
     FALLCONST = 0.5
-    LEFT_HITBOXCONST = (27, 8, -37, -9)
-    RIGHT_HITBOXCONST = (10, 8, -37, -9)
+    HITBOXCONST = (51, 8, -103, -9)
     BETWEENATTACK = 10
     HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
     DAMAGE = 10
+    MAXJUMPCOUNT = 10
+    JUMPCONST = 0.5
+
+    JUMPHEIGHT = 0
+    for n in range(MAXJUMPCOUNT): # Unable to use comperhensions because of 'class body' scope of class attributes
+        JUMPHEIGHT += round(n**2 * JUMPCONST)
 
     def __init__(self, x):
-        self.isJump = False # Currently constant
-
         # Variable attributes
         self.health = 100
         self.x = x
         self.y = -Enemy.HEIGHT
         self.fall_count = 0
-        self.ze_padel = False
         self.standing = False
         self.walk_count = 0
         self.isLeft = False
         self.closest_player = None
         self.inAttack = False
-        self.attack_count = -1
+        self.attack_count = 0
         self.hitbox = None
         self.betweenAttackCount = Enemy.BETWEENATTACK
         self.isColliding = False
         self.current_platform = None
+        self.target_platform = None
+        self.heading_left = None
+        self.isJump = False
+        self.jump_count = Enemy.MAXJUMPCOUNT
 
     def draw(self):
         global window
-        if self.hitbox != None and self.health != None:
-            display_health_bar(self.hitbox, self.health)
+        if self.hitbox != None and self.health:
+            self.display_health_bar()
 
-        if self.walk_count >= 16:
+        if self.walk_count > 18:
             self.walk_count = 0
 
         if self.inAttack:
             if self.isLeft:
-                window.blit(Enemy.WALK_LEFT[self.attack_count], (self.x, self.y))
+                window.blit(Enemy.ATTACK_LEFT[self.attack_count], (self.x, self.y))
             else:
                 window.blit(Enemy.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
 
         elif self.standing:
-            if self.isLeft:
-                window.blit(Enemy.WALK_LEFT[0], (self.x, self.y))
-            else:
-                window.blit(Enemy.WALK_RIGHT[0], (self.x, self.y))
+            window.blit(pygame.image.load(enemy_texture_location+'Idle__000.png'), (self.x, self.y))
 
         elif self.isLeft:
             window.blit(Enemy.WALK_LEFT[self.walk_count//2], (self.x, self.y))
@@ -330,10 +348,12 @@ class Enemy(object):
             window.blit(Enemy.WALK_RIGHT[self.walk_count//2], (self.x, self.y))
 
     def exist(self):
-        global players
+        if not self.hitbox:
+            self.generate_hitbox()
 
         self.check_hit()
-        check_fall(self)
+        self.check_fall()
+        self.check_jump()
         if self.find_closest_player():
             self.check_attack()
             if not self.inAttack:
@@ -348,48 +368,88 @@ class Enemy(object):
         else:
             return False
 
-    def fall(self):
-        if self.closest_player != None and self.x < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
-            self.isLeft = False
-        else:
-            self.isLeft = True
-
-        if self.y + Enemy.HEIGHT > display_height:
-            self.y = display_height - Enemy.HEIGHT
-        elif self.y < display_height - Enemy.HEIGHT:
-            self.y += self.fall_count**2 *Enemy.FALLCONST
-            self.fall_count += 1
-        else:
-            self.ze_padel = True
-
     def check_move(self):
-        x_collision = self.hitbox != None and self.hitbox[0] < self.closest_player.hitbox[0] + self.closest_player.hitbox[2] and self.closest_player.hitbox[0] < self.hitbox[0] + self.hitbox[2]
-        if x_collision:
-            self.standing = True
-            pass
+        if self.isJump or self.fall_count != 0:
+            return # Enemy doesn't move if in jump or falling
 
-        elif self.x + (Enemy.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
-            self.standing = False
-            if self.isLeft:
+        elif self.current_platform != None and self.current_platform == self.closest_player.current_platform:
+            if self.x + (Enemy.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+                self.standing = False
+                if self.isLeft:
+                    self.walk_count += 1
+                    self.x -= Enemy.velocity
+                else:
+                    self.isLeft = True
+                    self.walk_count = 0
+
+            elif self.x + (Enemy.WIDTH//2) < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
+                self.standing = False
+                if not self.isLeft:
+                    self.walk_count += 1
+                    self.x += Enemy.velocity
+                else:
+                    self.isLeft = False
+                    self.walk_count = 0
+
+        elif self.target_platform and self.target_platform.hitbox[0] + self.target_platform.hitbox[2] > self.hitbox[0] and self.hitbox[0] + self.hitbox[2] > self.target_platform.hitbox[0]: # X collision between enemy and its target platform
+            if not self.isJump and calculate_possibility_result(100 - self.y//display_height):
+                self.isJump = True # Beginning of a jump
+                self.target_platform = None
+
+        elif not self.standing and self.heading_left != None:
+            if self.heading_left:
+                self.isLeft = True
                 self.walk_count += 1
                 self.x -= Enemy.velocity
             else:
-                self.isLeft = True
-                self.walk_count = 0
-
-        elif self.x + (Enemy.WIDTH//2) < self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
-            self.standing = False
-            if not self.isLeft:
+                self.isLeft = False
                 self.walk_count += 1
                 self.x += Enemy.velocity
-            else:
-                self.isLeft = False
-                self.walk_count = 0
+
+        if self.heading_left == None:
+            self.heading_left = random.choice([True, False])
+
         else:
-            pass
+            if self.current_platform and self.hitbox[0] + self.hitbox[2] + self.velocity > self.current_platform.hitbox[0] + self.current_platform.hitbox[2] and calculate_possibility_result(20):
+                self.heading_left = True
+
+            elif self.current_platform and self.hitbox[0] - self.velocity < self.current_platform.hitbox[0] and calculate_possibility_result((self.y//display_height)//5):
+                self.heading_left = False
+
+        if self.hitbox[0] - self.velocity < 0:
+            self.heading_left = False
+        elif self.hitbox[0] + self.hitbox[2] + self.velocity > display_width:
+            self.heading_left = True
+
+        if not self.target_platform:
+            self.get_target_platform()
+
+    def get_target_platform(self):
+        if not self.current_platform:
+            self.target_platform = None
+            return
+
+        avalible_platforms = []
+        for platform in platforms:
+            platform_x_collision = self.current_platform.hitbox[0] < platform.hitbox[0] + platform.hitbox[2] and self.current_platform.hitbox[0] + self.current_platform.hitbox[2] > platform.hitbox[0]
+
+            if platform_x_collision and platform.Y > self.y + Enemy.HEIGHT - Enemy.JUMPHEIGHT and platform.Y < self.y + Enemy.HEIGHT and self.current_platform != platform:
+                avalible_platforms.append(platform)
+
+            if avalible_platforms:
+                self.target_platform = random.choice(avalible_platforms)
+
+    def check_jump(self):
+        if self.isJump:
+            self.jump_count -= 1
+            self.y -= round(self.jump_count**2 * Enemy.JUMPCONST)
+
+        if self.jump_count == 1:
+            self.jump_count = Enemy.MAXJUMPCOUNT
+            self.isJump = False
 
     def find_closest_player(self):
-        if len(players) > 0:
+        if players:
             oddaljenosti = [abs(self.x - player.x) for player in players]
             self.closest_player = players[oddaljenosti.index(min(oddaljenosti))]
             return True
@@ -397,30 +457,28 @@ class Enemy(object):
             return False
 
     def check_attack(self):
-        if self.hitbox == None:
-            return
-
         self.isColliding = check_collision(self.hitbox, self.closest_player.hitbox)
         if self.isColliding and self.betweenAttackCount == Enemy.BETWEENATTACK:
             self.inAttack = True
 
-            if self.attack_count < 2:
+            if self.attack_count < 9:
                 self.attack_count += 1
             else:
-                self.attack_count = -1
+                self.attack_count = 0
                 self.closest_player.get_hit(Enemy.DAMAGE)
                 self.betweenAttackCount = 0
 
+        elif self.isColliding:
+            self.betweenAttackCount += 1
+
         else:
             self.inAttack = False
+            self.attack_count = 0
             if self.betweenAttackCount < Enemy.BETWEENATTACK:
                 self.betweenAttackCount += 1
 
     def generate_hitbox(self):
-        if self.isLeft:
-            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, Enemy.WIDTH, Enemy.HEIGHT), Enemy.LEFT_HITBOXCONST))
-        else:
-            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, Enemy.WIDTH, Enemy.HEIGHT), Enemy.RIGHT_HITBOXCONST))
+        self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, Enemy.WIDTH, Enemy.HEIGHT), Enemy.HITBOXCONST))
 
     def check_hit(self):
         for projectile in projectiles:
@@ -556,6 +614,7 @@ platforms = []
 finalEnemyCount = 5
 players.append(Player(inputType.KEYBOARD))
 platforms.append(Platform(0, display_height - singlePlatformHeight, 8))
+enemies.append(Enemy(100))
 
 generate_platform(0, display_width, 3, display_height)
 
@@ -565,8 +624,8 @@ while game_run:
             game_run = False
 
     clock.tick(30)
-    if len(enemies) < finalEnemyCount:
-        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
+    """if len(enemies) < finalEnemyCount:
+        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)"""
 
     for player in players:
         if not player.exist():
@@ -582,5 +641,6 @@ while game_run:
 
     displayTextStart = 0
     draw_window()
+    #time.sleep(0.1)
 
 pygame.quit()
