@@ -129,7 +129,7 @@ class Body(object):
             self.fall_count = 0
             self.y = self.current_platform.hitbox[1] - self.HEIGHT
 
-    def display_health(self, displayText):
+    def display_points(self, displayText):
         global window
         global displayTextStart
 
@@ -137,6 +137,18 @@ class Body(object):
         currentSize = text.get_size()[0]
         window.blit(text, (displayTextStart, 0))
         displayTextStart += currentSize + 20
+
+    def display_players_health(self):
+        global window
+        global healtBarStart
+
+        x = display_width - 20 - heart_icon.get_width()
+        for i in range(self.health):
+            window.blit(heart_icon, (x, healtBarStart))
+            x -= heart_icon.get_width()
+
+
+        healtBarStart = 0
 
     def display_health_bar(self):
         pygame.draw.rect(window, (255, 0, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 10, self.hitbox[2] + healthBarResize*2, 5))
@@ -159,7 +171,7 @@ class Player(Body):
         self.INPUTTYPE = inputForm
 
         # Variable attributes
-        self.health = 100
+        self.health = 5
         self.x = random.randint(0, display_width-Player.WIDTH)
         self.y = -Player.HEIGHT
         self.isJump = False
@@ -171,6 +183,7 @@ class Player(Body):
         self.hitbox = None
         self.shoot_count = Player.MAXSHOOTCOUNT
         self.current_platform = None
+        self.points = 0
 
         # Command attrubutes
         self.inputLEFT = None
@@ -180,7 +193,8 @@ class Player(Body):
 
     def draw(self):
         global window
-        self.display_health("My health: " + str(self.health))
+        self.display_players_health()
+        self.display_points("Points: {}".format(self.points))
 
         if self.walk_count >= 18:
             self.walk_count = 0
@@ -226,7 +240,7 @@ class Player(Body):
         if self.inputFIRE and self.shoot_count == Player.MAXSHOOTCOUNT:
             if len(projectiles) <= 10:
                 self.shoot_count = 0
-                projectile = Projectile(self.x + Player.WIDTH//2, int(self.y + Player.HEIGHT/2), self.isLeft)
+                projectile = Projectile(self.x + Player.WIDTH//2, int(self.y + Player.HEIGHT/2), self.isLeft, self)
                 projectiles.append(projectile)
                 projectile.SOUND.play()
 
@@ -294,7 +308,7 @@ class Enemy(Body):
     HITBOXCONST = (51, 20, -103, -20)
     BETWEENATTACK = 10
     HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
-    DAMAGE = 10
+    DAMAGE = 1
     MAXJUMPCOUNT = 10
     JUMPCONST = 0.5
 
@@ -322,6 +336,7 @@ class Enemy(Body):
         self.heading_left = None
         self.isJump = False
         self.jump_count = Enemy.MAXJUMPCOUNT
+        self.last_damager = None
 
     def draw(self):
         global window
@@ -364,6 +379,7 @@ class Enemy(Body):
         if self.health > 0:
             return True
         else:
+            self.last_damager.points += 10
             return False
 
     def check_move(self):
@@ -484,9 +500,10 @@ class Enemy(Body):
                 projectile.make_hit()
                 Enemy.HITSOUND.play()
                 self.health -= projectile.DAMAGE
+                self.last_damager = projectile.owner
 
 class Projectile(object):
-    def __init__(self, x, y, left):
+    def __init__(self, x, y, left, owner):
         # Constant attributes
         self.TYPE = self.generate_type()
         self.y = y
@@ -527,6 +544,7 @@ class Projectile(object):
         self.hit_countdown = 0
         self.hit = False
         self.isDangerous = True
+        self.owner = owner
 
     def draw(self):
         global window
@@ -599,6 +617,7 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("calibri", 30)
 
 bg = pygame.image.load(texture_location+"luna.png")
+heart_icon = resize_picture(pygame.image.load(texture_location+"heart.png"), 0.5)
 pygame.mixer.music.load(sound_location+"music.mp3")
 pygame.mixer.music.play(-1)
 game_run = True
@@ -638,6 +657,7 @@ while game_run:
             projectiles.remove(projectile)
 
     displayTextStart = 0
+    healtBarStart = 30
     draw_window()
 
 pygame.quit()
