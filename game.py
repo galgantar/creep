@@ -2,9 +2,6 @@ import pygame
 import random
 import enum
 
-import time # testing purposes
-
-
 display_width = 800
 display_height = 500
 
@@ -64,6 +61,7 @@ def check_collision(first, second):
 
 def calculate_possibility_result(possibility):
     """function returns resoult with the given possibility"""
+    possibility = round(possibility)
     if random.randint(1, 100) <= possibility:
         return True
     else:
@@ -141,8 +139,8 @@ class Body(object):
         displayTextStart += currentSize + 20
 
     def display_health_bar(self):
-        pygame.draw.rect(window, (255, 0, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 15, self.hitbox[2] + healthBarResize*2, 10))
-        pygame.draw.rect(window, (0, 255, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 15, ((self.hitbox[2] + healthBarResize*2)*self.health)//100, 10))
+        pygame.draw.rect(window, (255, 0, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 10, self.hitbox[2] + healthBarResize*2, 5))
+        pygame.draw.rect(window, (0, 255, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 10, ((self.hitbox[2] + healthBarResize*2)*self.health)//100, 5))
 
 
 class Player(Body):
@@ -237,8 +235,8 @@ class Player(Body):
             if self.inputUP and self.current_platform != None:
                 self.isJump = True
         else:
-            speed = round(self.jump_count**2 * Player.JUMPCONST)
             if self.jump_count >= 0:
+                speed = round(self.jump_count**2 * Player.JUMPCONST)
                 self.y -= speed
                 self.jump_count -= 1
             else:
@@ -253,8 +251,8 @@ class Player(Body):
             self.isLeft = True
             self.walk_count += 1
 
-            if self.x - Player.velocity <= 0:
-                self.x = 0
+            if self.hitbox[0] - Player.velocity <= 0:
+                self.x = -Player.HITBOXCONST[0]
             else:
                 self.x -= Player.velocity
 
@@ -265,8 +263,8 @@ class Player(Body):
             self.standing = False
             self.walk_count += 1
 
-            if self.x + Player.WIDTH + Player.velocity >= display_width:
-                self.x = display_width - Player.WIDTH
+            if self.hitbox[0] + self.hitbox[2] + Player.velocity >= display_width:
+                self.x = display_width + Player.HITBOXCONST[2] # third value in hitboxconst is negative
             else:
                 self.x += Player.velocity
 
@@ -293,7 +291,7 @@ class Enemy(Body):
     HEIGHT = WALK_LEFT[0].get_height()
     velocity = 3
     FALLCONST = 0.5
-    HITBOXCONST = (51, 8, -103, -9)
+    HITBOXCONST = (51, 20, -103, -20)
     BETWEENATTACK = 10
     HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
     DAMAGE = 10
@@ -301,7 +299,7 @@ class Enemy(Body):
     JUMPCONST = 0.5
 
     JUMPHEIGHT = 0
-    for n in range(MAXJUMPCOUNT): # Unable to use comperhensions because of 'class body' scope of class attributes
+    for n in range(MAXJUMPCOUNT+1): # Unable to use comperhensions because of 'class body' scope of class attributes
         JUMPHEIGHT += round(n**2 * JUMPCONST)
 
     def __init__(self, x):
@@ -369,10 +367,11 @@ class Enemy(Body):
             return False
 
     def check_move(self):
-        if self.isJump or self.fall_count != 0:
+        if self.current_platform == None or self.isJump or self.fall_count != 0:
+            self.target_platform = None
             return # Enemy doesn't move if in jump or falling
 
-        elif self.current_platform != None and self.current_platform == self.closest_player.current_platform:
+        elif self.current_platform == self.closest_player.current_platform:
             if self.x + (Enemy.WIDTH//2) > self.closest_player.hitbox[0] + (self.closest_player.hitbox[2]//2):
                 self.standing = False
                 if self.isLeft:
@@ -390,11 +389,7 @@ class Enemy(Body):
                 else:
                     self.isLeft = False
                     self.walk_count = 0
-
-        elif self.target_platform and self.target_platform.hitbox[0] + self.target_platform.hitbox[2] > self.hitbox[0] and self.hitbox[0] + self.hitbox[2] > self.target_platform.hitbox[0]: # X collision between enemy and its target platform
-            if not self.isJump and calculate_possibility_result(100 - self.y//display_height):
-                self.isJump = True # Beginning of a jump
-                self.target_platform = None
+            return
 
         elif not self.standing and self.heading_left != None:
             if self.heading_left:
@@ -406,14 +401,21 @@ class Enemy(Body):
                 self.walk_count += 1
                 self.x += Enemy.velocity
 
+        if self.target_platform and self.target_platform.hitbox[0] + self.target_platform.hitbox[2] > self.hitbox[0] and self.hitbox[0] + self.hitbox[2] > self.target_platform.hitbox[0]: # X collision between enemy and its target platform
+            possibility_percentage = (self.y/display_height)*5
+            if not self.isJump and calculate_possibility_result(possibility_percentage):
+                self.isJump = True # Beginning of a jump
+                self.jump_count = Enemy.MAXJUMPCOUNT
+
         if self.heading_left == None:
             self.heading_left = random.choice([True, False])
 
         else:
-            if self.current_platform and self.hitbox[0] + self.hitbox[2] + self.velocity > self.current_platform.hitbox[0] + self.current_platform.hitbox[2] and calculate_possibility_result(20):
+            possibility_percentage = (100 - ((self.y/display_height)*100))/4
+            if self.current_platform and self.hitbox[0] + self.hitbox[2] + self.velocity > self.current_platform.hitbox[0] + self.current_platform.hitbox[2] and calculate_possibility_result(possibility_percentage):
                 self.heading_left = True
 
-            elif self.current_platform and self.hitbox[0] - self.velocity < self.current_platform.hitbox[0] and calculate_possibility_result((self.y//display_height)//5):
+            elif self.current_platform and self.hitbox[0] - self.velocity < self.current_platform.hitbox[0] and calculate_possibility_result(possibility_percentage):
                 self.heading_left = False
 
         if self.hitbox[0] - self.velocity < 0:
@@ -421,28 +423,24 @@ class Enemy(Body):
         elif self.hitbox[0] + self.hitbox[2] + self.velocity > display_width:
             self.heading_left = True
 
-        if not self.target_platform:
+        if not self.target_platform and self.current_platform:
             self.get_target_platform()
 
     def get_target_platform(self):
-        if not self.current_platform:
-            self.target_platform = None
-            return
-
         avalible_platforms = []
         for platform in platforms:
             platform_x_collision = self.current_platform.hitbox[0] < platform.hitbox[0] + platform.hitbox[2] and self.current_platform.hitbox[0] + self.current_platform.hitbox[2] > platform.hitbox[0]
 
-            if platform_x_collision and platform.Y > self.y + Enemy.HEIGHT - Enemy.JUMPHEIGHT and platform.Y < self.y + Enemy.HEIGHT and self.current_platform != platform:
+            if self.current_platform != platform and platform_x_collision and platform.Y > self.y + Enemy.HEIGHT - Enemy.JUMPHEIGHT and platform.Y < self.y + Enemy.HEIGHT:
                 avalible_platforms.append(platform)
 
-            if avalible_platforms:
-                self.target_platform = random.choice(avalible_platforms)
+        if avalible_platforms:
+            self.target_platform = random.choice(avalible_platforms)
 
     def check_jump(self):
         if self.isJump:
-            self.jump_count -= 1
             self.y -= round(self.jump_count**2 * Enemy.JUMPCONST)
+            self.jump_count -= 1
 
         if self.jump_count == 1:
             self.jump_count = Enemy.MAXJUMPCOUNT
@@ -544,9 +542,9 @@ class Projectile(object):
             return False
 
     def generate_type(self):
-        if calculate_possibility_result(20):
+        if calculate_possibility_result(10):
             return bulletType.RED
-        elif calculate_possibility_result(50):
+        elif calculate_possibility_result(30):
             return bulletType.GREEN
         else:
             return bulletType.BLUE
@@ -624,8 +622,8 @@ while game_run:
             game_run = False
 
     clock.tick(30)
-    """if len(enemies) < finalEnemyCount:
-        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)"""
+    if len(enemies) < finalEnemyCount:
+        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
 
     for player in players:
         if not player.exist():
@@ -641,6 +639,5 @@ while game_run:
 
     displayTextStart = 0
     draw_window()
-    #time.sleep(0.1)
 
 pygame.quit()
