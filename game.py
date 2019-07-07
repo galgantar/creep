@@ -27,6 +27,58 @@ pygame.mixer.pre_init(44100, -16, 2, 2048) # Put here because of sound preloadin
 pygame.init()
 
 
+def starting_screen():
+    window.blit(bg, (0,0))
+    play_button = Button("Play", None, 250, centered_x=True)
+    exit_button = Button("Exit", None, 300, centered_x=True)
+
+    play_button.display()
+    exit_button.display()
+
+    pygame.display.update()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        if pygame.mouse.get_pressed()[0]:
+            if play_button.check_click(pygame.mouse.get_pos()):
+                break
+            if exit_button.check_click(pygame.mouse.get_pos()):
+                pygame.quit()
+                quit()
+
+def ending_screen(score):
+    window.blit(bg, (0,0))
+
+    caption = font.render("You died :-(", True, (0, 0, 0))
+    points = font.render("Your score: {}".format(score), True, (0, 0, 0))
+    window.blit(caption, (display_width//2 - caption.get_width()//2, 100))
+    window.blit(points, (display_width//2 - caption.get_width()//2, 130))
+
+    play_button = Button("Play again", None, 250, centered_x=True)
+    exit_button = Button("Exit", None, 300, centered_x=True)
+
+    play_button.display()
+    exit_button.display()
+
+    pygame.display.update()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        if pygame.mouse.get_pressed()[0]:
+            if play_button.check_click(pygame.mouse.get_pos()):
+                break
+            if exit_button.check_click(pygame.mouse.get_pos()):
+                pygame.quit()
+                quit()
+
 def draw_window():
     window.blit(bg, (0,0))
     display_elapsed_time()
@@ -66,7 +118,6 @@ def display_elapsed_time():
     formatted_time = "Time: {}:{}".format(time_elapsed // 60, time_elapsed % 60)
 
     text = font.render(str(formatted_time), True, (0, 0, 0))
-    currentSize = text.get_width()
     window.blit(text, (30, 30))
 
 def check_collision(first, second):
@@ -117,6 +168,34 @@ class bulletType(enum.Enum):
 class inputType(enum.Enum):
     KEYBOARD = enum.auto()
 
+
+class Button(object):
+    def __init__(self, text, x=None, y=None, **kwargs):
+        self.surface = font.render(text, True, (0, 0, 0))
+        self.WIDTH = self.surface.get_width()
+        self.HEIGHT = self.surface.get_height()
+
+        if "centered_x" in kwargs and kwargs["centered_x"]:
+            self.x = display_width//2 - self.WIDTH//2
+        else:
+            self.x = x
+
+        if "centered_y" in kwargs and kwargs["centered_y"]:
+            self.y = display_height//2 - self.HEIGHT//2
+        else:
+            self.y = y
+
+    def display(self):
+        window.blit(self.surface, (self.x, self.y))
+
+    def check_click(self, position):
+        x_match = position[0] > self.x and position[0] < self.x + self.WIDTH
+        y_match = position[1] > self.y and position[1] < self.y + self.HEIGHT
+
+        if x_match and y_match:
+            return True
+        else:
+            return False
 
 class Body(object):
     """parent class for everything with a human-like body (Enemy and Player classes)"""
@@ -664,12 +743,15 @@ platforms = []
 finalEnemyCount = 7
 starting_time = int(time.time())
 time_elapsed = 0
+finalScore = 0
 
 players.append(Player(inputType.KEYBOARD))
 platforms.append(Platform(0, display_height - singlePlatformHeight, 12))
 enemies.append(Enemy(100))
 
 generate_platform(0, display_width, 3, display_height)
+
+starting_screen()
 
 while game_run:
     for event in pygame.event.get():
@@ -685,7 +767,9 @@ while game_run:
 
     for player in players:
         if not player.exist():
+            finalScore += player.points
             players.remove(player)
+
 
     for enemy in enemies:
         if not enemy.exist():
@@ -698,5 +782,8 @@ while game_run:
     displayTextStart = 90
     healtBarStart = 30
     draw_window()
+    if not players:
+        ending_screen(finalScore)
 
 pygame.quit()
+quit()
