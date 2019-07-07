@@ -1,14 +1,19 @@
 import pygame
 import random
 import enum
+import os
+import time
 
-display_width = 800
-display_height = 500
+os.environ["SDL_VIDEO_CENTERED"] = "1" # Center a pygame window
+
+display_width = 1200
+display_height = 600
 
 sound_location = "sounds/"
 texture_location = "textures/"
 player_texture_location = "textures/player/"
 enemy_texture_location = "textures/skeleton/"
+bullet_textures_location = "textures/ammunition/"
 
 # Platform generation values
 singlePlatformWidth = 100
@@ -24,6 +29,7 @@ pygame.init()
 
 def draw_window():
     window.blit(bg, (0,0))
+    display_elapsed_time()
 
     for platform in platforms:
         platform.draw()
@@ -48,6 +54,20 @@ def resize_picture(picture, ratio):
     new_width = round(new_height * relation_coefficient)
 
     return pygame.transform.scale(picture, (new_width, new_height))
+
+def create_sound(name):
+    location = sound_location + name
+    sound = pygame.mixer.Sound(location)
+    sound.set_volume(0.1)
+    return sound
+
+def display_elapsed_time():
+    global time_elapsed
+    formatted_time = "Time: {}:{}".format(time_elapsed // 60, time_elapsed % 60)
+
+    text = font.render(str(formatted_time), True, (0, 0, 0))
+    currentSize = text.get_width()
+    window.blit(text, (30, 30))
 
 def check_collision(first, second):
     """fuction checks collision of two given hitboxes"""
@@ -133,10 +153,10 @@ class Body(object):
         global window
         global displayTextStart
 
-        text = font.render(displayText, True, (255, 255, 255))
-        currentSize = text.get_size()[0]
-        window.blit(text, (displayTextStart, 0))
-        displayTextStart += currentSize + 20
+        text = font.render(displayText, True, (0, 0, 0))
+        currentSize = text.get_width()
+        window.blit(text, (30, displayTextStart))
+        displayTextStart += currentSize + 30
 
     def display_players_health(self):
         global window
@@ -171,7 +191,7 @@ class Player(Body):
         self.INPUTTYPE = inputForm
 
         # Variable attributes
-        self.health = 5
+        self.health = 7
         self.x = random.randint(0, display_width-Player.WIDTH)
         self.y = -Player.HEIGHT
         self.isJump = False
@@ -307,7 +327,7 @@ class Enemy(Body):
     FALLCONST = 0.5
     HITBOXCONST = (51, 20, -103, -20)
     BETWEENATTACK = 10
-    HITSOUND = pygame.mixer.Sound(sound_location+"hit.wav")
+    HITSOUND = create_sound("hit.wav")
     DAMAGE = 1
     MAXJUMPCOUNT = 10
     JUMPCONST = 0.5
@@ -353,7 +373,10 @@ class Enemy(Body):
                 window.blit(Enemy.ATTACK_RIGHT[self.attack_count], (self.x, self.y))
 
         elif self.standing:
-            window.blit(pygame.image.load(enemy_texture_location+'Idle__000.png'), (self.x, self.y))
+            if self.isLeft:
+                window.blit(Enemy.WALK_LEFT[0], (self.x, self.y))
+            else:
+                window.blit(Enemy.WALK_LEFT[0], (self.x, self.y))
 
         elif self.isLeft:
             window.blit(Enemy.WALK_LEFT[self.walk_count//2], (self.x, self.y))
@@ -503,43 +526,49 @@ class Enemy(Body):
                 self.last_damager = projectile.owner
 
 class Projectile(object):
+    BLUE_ICON = resize_picture(pygame.image.load(bullet_textures_location + "b2.png"), 0.4)
+    GREEN_ICON = resize_picture(pygame.image.load(bullet_textures_location + "b3.png"), 0.5)
+    RED_ICON = resize_picture(pygame.image.load(bullet_textures_location + "b1.png"), 0.5)
+
     def __init__(self, x, y, left, owner):
         # Constant attributes
         self.TYPE = self.generate_type()
-        self.y = y
+
+        if self.TYPE == bulletType.RED:
+            self.DAMAGE = 100
+            self.VELOCITY = 4
+            self.MAXHITCOUNTDOWN = 1
+            self.SOUND = create_sound("bullet.wav")
+            self.ICON = Projectile.RED_ICON
+            self.HITBOXCONST = (5,15,-5,-30)
+
+        elif self.TYPE == bulletType.GREEN:
+            self.DAMAGE = 10
+            self.VELOCITY = 7
+            self.MAXHITCOUNTDOWN = 1
+            self.SOUND = create_sound("bullet.wav")
+            self.ICON = Projectile.GREEN_ICON
+            self.HITBOXCONST = (15,22,-15,-44)
+
+        else:
+            self.DAMAGE = 30
+            self.VELOCITY = 16
+            self.MAXHITCOUNTDOWN = 0
+            self.SOUND = create_sound("bullet.wav")
+            self.ICON = Projectile.BLUE_ICON
+            self.HITBOXCONST = (5,15,-5,-30)
+
         if left:
             self.DIRECTION_COEFFICIENT = -1
+            self.ICON = flip_picture(self.ICON)
         else:
             self.DIRECTION_COEFFICIENT = 1
 
-        if self.TYPE == bulletType.RED:
-            self.COLOR = (255, 0, 0)
-            self.DAMAGE = 100
-            self.RADIUS = 9
-            self.VELOCITY = 4
-            self.MAXHITCOUNTDOWN = 1
-            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
-
-        elif self.TYPE == bulletType.GREEN:
-            self.COLOR = (0, 255, 0)
-            self.DAMAGE = 10
-            self.RADIUS = 5
-            self.VELOCITY = 7
-            self.MAXHITCOUNTDOWN = 1
-            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
-
-        else:
-            self.COLOR = (0, 0, 255)
-            self.DAMAGE = 30
-            self.RADIUS = 7
-            self.VELOCITY = 16
-            self.MAXHITCOUNTDOWN = 0
-            self.SOUND = pygame.mixer.Sound(sound_location+"bullet.wav")
-
-        self.HITBOXCONST = (-self.RADIUS, -self.RADIUS, 0, 0)
-
         # Variable attributes
+        self.WIDTH = self.ICON.get_width() # Depends on projectile type
+        self.HEIGHT = self.ICON.get_height() # Depends on projectile type
         self.x = x
+        self.y = y - self.HEIGHT // 2
         self.hitbox = None
         self.hit_countdown = 0
         self.hit = False
@@ -548,24 +577,27 @@ class Projectile(object):
 
     def draw(self):
         global window
-        pygame.draw.circle(window, self.COLOR, (self.x, self.y), self.RADIUS)
+        window.blit(self.ICON, (self.x, self.y))
 
     def exist(self):
-        inside_screen = self.x + self.RADIUS*2 < display_width and self.x >= 0
+        inside_screen = self.x + self.WIDTH < display_width and self.x >= 0
         if inside_screen and self.execute_hit():
             self.x += self.VELOCITY * self.DIRECTION_COEFFICIENT
-            self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.RADIUS*2, self.RADIUS*2), self.HITBOXCONST))
+            self.generate_hitbox()
             return True
         else:
             return False
 
     def generate_type(self):
-        if calculate_possibility_result(10):
+        if calculate_possibility_result(5):
             return bulletType.RED
-        elif calculate_possibility_result(30):
+        elif calculate_possibility_result(15):
             return bulletType.GREEN
         else:
             return bulletType.BLUE
+
+    def generate_hitbox(self):
+        self.hitbox = tuple(sum(element) for element in zip((self.x, self.y, self.WIDTH, self.HEIGHT), self.HITBOXCONST))
 
     def make_hit(self):
         """Method called only by other objects"""
@@ -610,15 +642,15 @@ class Platform(object):
         return newSurface
 
 window = pygame.display.set_mode((display_width, display_height))
-# window = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 pygame.display.set_caption("Creep")
 
 clock = pygame.time.Clock()
-font = pygame.font.SysFont("calibri", 30)
+font = pygame.font.Font("fonts/04b03.ttf", 30)
 
-bg = pygame.image.load(texture_location+"luna.png")
+bg = pygame.image.load(texture_location+"background.jpg")
 heart_icon = resize_picture(pygame.image.load(texture_location+"heart.png"), 0.5)
 pygame.mixer.music.load(sound_location+"music.mp3")
+pygame.mixer.music.set_volume(0.05)
 pygame.mixer.music.play(-1)
 game_run = True
 
@@ -628,9 +660,13 @@ players = []
 enemies = []
 projectiles = []
 platforms = []
-finalEnemyCount = 5
+
+finalEnemyCount = 7
+starting_time = int(time.time())
+time_elapsed = 0
+
 players.append(Player(inputType.KEYBOARD))
-platforms.append(Platform(0, display_height - singlePlatformHeight, 8))
+platforms.append(Platform(0, display_height - singlePlatformHeight, 12))
 enemies.append(Enemy(100))
 
 generate_platform(0, display_width, 3, display_height)
@@ -641,6 +677,9 @@ while game_run:
             game_run = False
 
     clock.tick(30)
+    time_elapsed = int(time.time()) - starting_time
+    finalEnemyCount = 7 + time_elapsed // 15
+
     if len(enemies) < finalEnemyCount:
         spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
 
@@ -656,7 +695,7 @@ while game_run:
         if not projectile.exist():
             projectiles.remove(projectile)
 
-    displayTextStart = 0
+    displayTextStart = 90
     healtBarStart = 30
     draw_window()
 
