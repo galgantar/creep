@@ -29,9 +29,11 @@ pygame.init()
 
 def starting_screen():
     window.blit(bg, (0,0))
-    play_button = Button("Play", None, 250, centered_x=True)
-    exit_button = Button("Exit", None, 300, centered_x=True)
+    play_button = Button("Play", None, 300, centered_x=True)
+    exit_button = Button("Exit", None, 350, centered_x=True)
+    game_title = font_large.render("Creep", True, (0, 0, 0))
 
+    window.blit(game_title, (display_width//2 - game_title.get_width()//2, 150))
     play_button.display()
     exit_button.display()
 
@@ -725,6 +727,7 @@ pygame.display.set_caption("Creep")
 
 clock = pygame.time.Clock()
 font = pygame.font.Font("fonts/04b03.ttf", 30)
+font_large = pygame.font.Font("fonts/04b03.ttf", 100)
 
 bg = pygame.image.load(texture_location+"background.jpg")
 heart_icon = resize_picture(pygame.image.load(texture_location+"heart.png"), 0.5)
