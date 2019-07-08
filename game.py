@@ -43,14 +43,14 @@ def starting_screen():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                quit()
+                raise SystemExit
 
         if pygame.mouse.get_pressed()[0]:
             if play_button.check_click(pygame.mouse.get_pos()):
                 break
             if exit_button.check_click(pygame.mouse.get_pos()):
                 pygame.quit()
-                quit()
+                raise SystemExit
 
 def ending_screen(score):
     window.blit(bg, (0,0))
@@ -72,14 +72,14 @@ def ending_screen(score):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                quit()
+                raise SystemExit
 
         if pygame.mouse.get_pressed()[0]:
             if play_button.check_click(pygame.mouse.get_pos()):
                 break
             if exit_button.check_click(pygame.mouse.get_pos()):
                 pygame.quit()
-                quit()
+                raise SystemExit
 
 def draw_window():
     window.blit(bg, (0,0))
@@ -241,15 +241,15 @@ class Body(object):
 
     def display_players_health(self):
         global window
-        global healtBarStart
+        global healthBarStart
 
         x = display_width - 20 - heart_icon.get_width()
         for i in range(self.health):
-            window.blit(heart_icon, (x, healtBarStart))
+            window.blit(heart_icon, (x, healthBarStart))
             x -= heart_icon.get_width()
 
 
-        healtBarStart = 0
+        healthBarStart = 0
 
     def display_health_bar(self):
         pygame.draw.rect(window, (255, 0, 0), (self.hitbox[0] - healthBarResize, self.hitbox[1] - 10, self.hitbox[2] + healthBarResize*2, 5))
@@ -731,62 +731,71 @@ font_large = pygame.font.Font("fonts/04b03.ttf", 100)
 
 bg = pygame.image.load(texture_location+"background.jpg")
 heart_icon = resize_picture(pygame.image.load(texture_location+"heart.png"), 0.5)
-pygame.mixer.music.load(sound_location+"music.mp3")
-pygame.mixer.music.set_volume(0.05)
-pygame.mixer.music.play(-1)
-game_run = True
-
-healthBarResize = 10
 
 players = []
 enemies = []
 projectiles = []
 platforms = []
 
+healthBarResize = 10 # For enemies
+helthBarStart = 30 # For player
+
 finalEnemyCount = 7
 starting_time = int(time.time())
 time_elapsed = 0
 finalScore = 0
 
-players.append(Player(inputType.KEYBOARD))
-platforms.append(Platform(0, display_height - singlePlatformHeight, 12))
-enemies.append(Enemy(100))
+def main():
+    global healthBarStart
+    global displayTextStart
+    global finalScore
 
-generate_platform(0, display_width, 3, display_height)
+    pygame.mixer.music.load(sound_location+"music.mp3")
+    pygame.mixer.music.set_volume(0.05)
+    pygame.mixer.music.play(-1)
+    game_run = True
 
-starting_screen()
+    players.append(Player(inputType.KEYBOARD))
+    platforms.append(Platform(0, display_height - singlePlatformHeight, 12))
+    enemies.append(Enemy(100))
 
-while game_run:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            game_run = False
+    generate_platform(0, display_width, 3, display_height)
 
-    clock.tick(30)
-    time_elapsed = int(time.time()) - starting_time
-    finalEnemyCount = 7 + time_elapsed // 15
+    starting_screen()
+    while game_run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game_run = False
 
-    if len(enemies) < finalEnemyCount:
-        spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
+        clock.tick(30)
+        time_elapsed = int(time.time()) - starting_time
+        finalEnemyCount = 7 + time_elapsed // 15
 
-    for player in players:
-        if not player.exist():
-            finalScore += player.points
-            players.remove(player)
+        if len(enemies) < finalEnemyCount:
+            spawn_enemies(1+(finalEnemyCount-len(enemies))*2)
+
+        for player in players:
+            if not player.exist():
+                finalScore += player.points
+                players.remove(player)
 
 
-    for enemy in enemies:
-        if not enemy.exist():
-            enemies.remove(enemy)
+        for enemy in enemies:
+            if not enemy.exist():
+                enemies.remove(enemy)
 
-    for projectile in projectiles:
-        if not projectile.exist():
-            projectiles.remove(projectile)
+        for projectile in projectiles:
+            if not projectile.exist():
+                projectiles.remove(projectile)
 
-    displayTextStart = 90
-    healtBarStart = 30
-    draw_window()
-    if not players:
-        ending_screen(finalScore)
+        displayTextStart = 90
+        healthBarStart = 30
+        draw_window()
+        if not players:
+            ending_screen(finalScore)
 
-pygame.quit()
-quit()
+    pygame.quit()
+    raise SystemExit
+
+if __name__ == "__main__":
+    main()
