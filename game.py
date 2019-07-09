@@ -76,7 +76,11 @@ def ending_screen(score):
 
         if pygame.mouse.get_pressed()[0]:
             if play_button.check_click(pygame.mouse.get_pos()):
-                break
+                del players[:]
+                del enemies[:]
+                del projectiles[:]
+                del platforms[:]
+                main(False)
             if exit_button.check_click(pygame.mouse.get_pos()):
                 pygame.quit()
                 raise SystemExit
@@ -741,14 +745,14 @@ healthBarResize = 10 # For enemies
 helthBarStart = 30 # For player
 
 finalEnemyCount = 7
-starting_time = int(time.time())
 time_elapsed = 0
 finalScore = 0
 
-def main():
+def main(firstRun=True):
     global healthBarStart
     global displayTextStart
     global finalScore
+    global time_elapsed
 
     pygame.mixer.music.load(sound_location+"music.mp3")
     pygame.mixer.music.set_volume(0.05)
@@ -761,13 +765,18 @@ def main():
 
     generate_platform(0, display_width, 3, display_height)
 
-    starting_screen()
+    if firstRun:
+        starting_screen()
+
+    starting_time = int(time.time())
+
     while game_run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_run = False
 
         clock.tick(30)
+
         time_elapsed = int(time.time()) - starting_time
         finalEnemyCount = 7 + time_elapsed // 15
 
