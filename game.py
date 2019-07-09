@@ -729,7 +729,6 @@ class Platform(object):
 window = pygame.display.set_mode((display_width, display_height))
 pygame.display.set_caption("Creep")
 
-clock = pygame.time.Clock()
 font = pygame.font.Font("fonts/04b03.ttf", 30)
 font_large = pygame.font.Font("fonts/04b03.ttf", 100)
 
@@ -776,7 +775,7 @@ def main(firstRun=True):
             if event.type == pygame.QUIT:
                 game_run = False
 
-        clock.tick(30)
+        pygame.time.wait(7)
 
         time_elapsed = int(time.time()) - starting_time
         finalEnemyCount = 7 + time_elapsed // 15
