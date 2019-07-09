@@ -167,12 +167,12 @@ def generate_platform(xMin, xMax, width, yFloor):
 
 
 class bulletType(enum.Enum):
-    RED = enum.auto()
-    GREEN = enum.auto()
-    BLUE = enum.auto()
+    RED = 1
+    GREEN = 2
+    BLUE = 3
 
 class inputType(enum.Enum):
-    KEYBOARD = enum.auto()
+    KEYBOARD = 1
 
 
 class Button(object):
