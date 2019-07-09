@@ -754,6 +754,7 @@ def main(firstRun=True):
     global finalScore
     global time_elapsed
 
+    finalScore = 0
     pygame.mixer.music.load(sound_location+"music.mp3")
     pygame.mixer.music.set_volume(0.05)
     pygame.mixer.music.play(-1)
