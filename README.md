@@ -6,7 +6,7 @@ Website: [creep-game.tk](http://www.creep-game.tk)
 
 ## Requirements
 
-*Pygame
+* Pygame
 
 ## Pyinstaller
 
