@@ -2,7 +2,7 @@
 
 Platformer minigame made in pygame (Python)
 
-Website: [https://www.pygame.org/project/4141/6311](https://www.pygame.org/project/4141/6311)
+Website: [https://creep-game.herokuapp.com](https://creep-game.herokuapp.com)
 
 ## Requirements
 
